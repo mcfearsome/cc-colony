@@ -316,7 +316,7 @@ When you complete something:
 ## Coordination
 
 Read the full communication guide at:
-`.forge-colony/COLONY_COMMUNICATION.md`
+`.colony/COLONY_COMMUNICATION.md`
 
 Now get started on your assigned work! Remember to check for messages from your teammates.
 "#,

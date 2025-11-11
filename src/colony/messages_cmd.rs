@@ -30,7 +30,7 @@ fn format_message_type(message_type: &MessageType) -> String {
 /// List messages for a specific agent
 pub async fn list_messages(agent_id: String) -> ColonyResult<()> {
     let current_dir = env::current_dir()?;
-    let colony_root = current_dir.join(".forge-colony");
+    let colony_root = current_dir.join(".colony");
 
     if !colony_root.exists() {
         return Err(ColonyError::Colony(
@@ -79,7 +79,7 @@ pub async fn list_messages(agent_id: String) -> ColonyResult<()> {
 /// List all messages in the system
 pub async fn list_all_messages() -> ColonyResult<()> {
     let current_dir = env::current_dir()?;
-    let colony_root = current_dir.join(".forge-colony");
+    let colony_root = current_dir.join(".colony");
 
     if !colony_root.exists() {
         return Err(ColonyError::Colony(

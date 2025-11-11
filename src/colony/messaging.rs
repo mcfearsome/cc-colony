@@ -358,10 +358,10 @@ This colony uses a message queue system for inter-agent communication.
 
 ## Messaging Structure
 
-Messages are stored in `.forge-colony/messages/` with the following structure:
+Messages are stored in `.colony/messages/` with the following structure:
 
 ```
-.forge-colony/messages/
+.colony/messages/
 ├── agent-1/              # Inbox for agent-1
 │   └── message-id.json
 ├── agent-2/              # Inbox for agent-2
@@ -393,13 +393,13 @@ You can also read/write messages directly. Replace `backend-1` with your actual 
 
 ```bash
 # Check your inbox (replace 'backend-1' with your agent ID)
-ls .forge-colony/messages/backend-1/
+ls .colony/messages/backend-1/
 
 # Read a specific message
-cat .forge-colony/messages/backend-1/message-id.json
+cat .colony/messages/backend-1/message-id.json
 
 # Check broadcast messages (visible to all agents)
-ls .forge-colony/messages/broadcast/
+ls .colony/messages/broadcast/
 ```
 
 ## Message Format

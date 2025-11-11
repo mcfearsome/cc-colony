@@ -31,7 +31,7 @@ pub struct AgentInfo {
 impl ColonyData {
     /// Load colony data from disk
     pub fn load(config_path: &Path) -> Result<Self, String> {
-        let colony_root = PathBuf::from(".forge-colony");
+        let colony_root = PathBuf::from(".colony");
 
         if !colony_root.exists() {
             return Err("Colony not initialized. Run 'forge colony start' first.".to_string());
