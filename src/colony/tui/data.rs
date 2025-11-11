@@ -13,7 +13,6 @@ pub struct ColonyData {
     pub agents: Vec<AgentInfo>,
     pub tasks: HashMap<TaskStatus, Vec<Task>>,
     pub messages: Vec<Message>,
-    pub colony_root: PathBuf,
 }
 
 /// Information about an agent
@@ -21,8 +20,6 @@ pub struct ColonyData {
 pub struct AgentInfo {
     pub id: String,
     pub role: String,
-    pub focus: String,
-    pub model: String,
     pub status: AgentStatus,
     pub pid: Option<u32>,
     pub current_task: Option<String>,
@@ -54,7 +51,6 @@ impl ColonyData {
             agents,
             tasks,
             messages,
-            colony_root,
         })
     }
 
@@ -103,8 +99,6 @@ impl ColonyData {
             agents.push(AgentInfo {
                 id: agent_config.id.clone(),
                 role: agent_config.role.clone(),
-                focus: agent_config.focus.clone(),
-                model: agent_config.model.clone(),
                 status,
                 pid,
                 current_task,

@@ -195,7 +195,7 @@ async fn run() -> ColonyResult<()> {
         Commands::Attach => colony::attach::run().await,
         Commands::Tui => {
             let config_path = std::path::Path::new("colony.yml");
-            colony::tui::run_tui(config_path).map_err(|e| crate::error::ColonyError::Colony(e))?;
+            colony::tui::run_tui(config_path).map_err(crate::error::ColonyError::Colony)?;
             Ok(())
         }
         Commands::Status => colony::status::run().await,

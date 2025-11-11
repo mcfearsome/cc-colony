@@ -21,15 +21,6 @@ pub enum Tab {
 }
 
 impl Tab {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Tab::Agents => "Agents",
-            Tab::Tasks => "Tasks",
-            Tab::Messages => "Messages",
-            Tab::Help => "Help",
-        }
-    }
-
     pub fn index(&self) -> usize {
         match self {
             Tab::Agents => 0,
@@ -216,7 +207,7 @@ fn run_app<B: Backend>(
                 let action = Action::from(key);
                 app.handle_action(action);
             }
-            Ok(Event::Resize(_, _)) => {
+            Ok(Event::Resize) => {
                 // Terminal was resized, will be handled on next draw
             }
             Ok(Event::Tick) => {

@@ -7,7 +7,7 @@ pub enum Event {
     /// A key was pressed
     Key(KeyEvent),
     /// Terminal was resized
-    Resize(u16, u16),
+    Resize,
     /// Tick event for periodic updates
     Tick,
 }
@@ -30,7 +30,7 @@ impl EventHandler {
         if event::poll(Duration::from_millis(self.tick_rate))? {
             match event::read()? {
                 CrosstermEvent::Key(key) => Ok(Event::Key(key)),
-                CrosstermEvent::Resize(w, h) => Ok(Event::Resize(w, h)),
+                CrosstermEvent::Resize(_, _) => Ok(Event::Resize),
                 _ => Ok(Event::Tick),
             }
         } else {

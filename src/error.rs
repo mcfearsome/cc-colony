@@ -10,9 +10,6 @@ pub enum ColonyError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    #[error("Config error: {0}")]
-    Config(String),
-
     #[error("Invalid configuration: {0}")]
     #[allow(dead_code)]
     InvalidConfig(String),
