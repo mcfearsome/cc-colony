@@ -45,8 +45,11 @@ impl ColonyController {
                 // Agent uses a custom directory
                 custom_dir
             } else {
-                // Agent uses a Git worktree
-                self.colony_root.join("worktrees").join(agent_id)
+                // Agent uses a Git worktree with the specified worktree name
+                // (defaults to agent ID if not specified)
+                self.colony_root
+                    .join("worktrees")
+                    .join(agent_config.worktree_name())
             };
 
             let project_path = self.colony_root.join("projects").join(agent_id);
@@ -77,14 +80,25 @@ impl ColonyController {
     }
 
     /// Create worktrees for all agents (skips agents with custom directories)
+    /// Deduplicates worktree creation when multiple agents share the same worktree
     pub fn create_worktrees(&self) -> ColonyResult<()> {
+        use std::collections::HashSet;
+
+        // Collect unique worktree names to avoid creating duplicates
+        let mut worktree_names = HashSet::new();
+
         for agent in self.agents.values() {
             // Skip if agent uses a custom directory
             if agent.config.uses_custom_directory() {
                 continue;
             }
 
-            worktree::create_worktree(agent.id(), &self.colony_root)?;
+            let worktree_name = agent.config.worktree_name();
+
+            // Only create worktree if we haven't already created one with this name
+            if worktree_names.insert(worktree_name.to_string()) {
+                worktree::create_worktree(worktree_name, &self.colony_root)?;
+            }
         }
         Ok(())
     }

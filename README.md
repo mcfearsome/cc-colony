@@ -7,11 +7,13 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 ## Features
 
 - **Multi-Agent Orchestration**: Run multiple Claude Code instances in parallel
-- **Tmux Integration**: Each agent runs in its own tmux session for easy monitoring
+- **Tmux Integration**: Each agent runs in its own tmux pane for easy monitoring
 - **Task Management**: Assign and track tasks across agents
 - **Inter-Agent Messaging**: Broadcast messages and communicate between agents
 - **Interactive TUI**: Monitor and control your colony with a terminal UI
 - **Git Worktree Isolation**: Each agent works in its own git worktree
+- **Shared Worktrees**: Multiple agents can collaborate in the same worktree
+- **Per-Agent Environment Variables**: Configure environment variables for each agent
 - **Per-Agent MCP Configuration**: Each agent can have its own MCP server setup
 
 ## Commands
@@ -95,6 +97,50 @@ MCP servers configured in `colony.yml` will:
 - Be passed to Claude Code via the `--settings` flag
 
 See `colony.example.yml` for more examples of MCP server configurations.
+
+### Shared Worktrees
+
+Multiple agents can work in the same worktree by specifying the same `worktree` name:
+
+```yaml
+agents:
+  - id: reviewer-1
+    role: Backend Reviewer
+    focus: Review backend code
+    worktree: shared-review  # Shares with reviewer-2
+
+  - id: reviewer-2
+    role: Frontend Reviewer
+    focus: Review frontend code
+    worktree: shared-review  # Shares with reviewer-1
+```
+
+Benefits of shared worktrees:
+- Agents can collaborate on the same codebase
+- Changes made by one agent are immediately visible to others
+- Reduces disk space usage
+- Useful for review, pair programming, or specialized focus areas
+
+### Per-Agent Environment Variables
+
+Set custom environment variables for each agent:
+
+```yaml
+agents:
+  - id: test-agent
+    role: Integration Tester
+    focus: Run integration tests
+    env:
+      TEST_ENV: integration
+      DATABASE_URL: postgresql://localhost:5432/test_db
+      LOG_LEVEL: debug
+```
+
+Environment variables are:
+- Exported before Claude Code starts
+- Isolated to each agent's pane
+- Shell-escaped for security
+- Useful for API keys, feature flags, and per-agent configuration
 
 ## Dashboard
 

@@ -30,6 +30,14 @@ pub struct AgentConfig {
     /// If not specified, agent will work in a Git worktree of the current repo
     #[serde(default)]
     pub directory: Option<String>,
+    /// Optional worktree name for sharing worktrees between agents
+    /// If not specified, defaults to the agent's ID
+    /// Multiple agents can specify the same worktree name to share a worktree
+    #[serde(default)]
+    pub worktree: Option<String>,
+    /// Optional environment variables for this agent's pane
+    #[serde(default)]
+    pub env: Option<HashMap<String, String>>,
     /// Optional MCP servers configuration for this agent
     #[serde(default)]
     pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
@@ -66,6 +74,12 @@ impl AgentConfig {
             }
             path
         })
+    }
+
+    /// Get the worktree name for this agent
+    /// Returns the configured worktree name, or the agent ID if not specified
+    pub fn worktree_name(&self) -> &str {
+        self.worktree.as_deref().unwrap_or(&self.id)
     }
 
     /// Generate Claude Code settings.json content with MCP server configuration
@@ -140,7 +154,9 @@ impl ColonyConfig {
                     role: "Backend Engineer".to_string(),
                     focus: "API endpoints and server logic".to_string(),
                     model: "claude-opus-4-20250514".to_string(),
-                    directory: None, // Uses Git worktree
+                    directory: None,    // Uses Git worktree
+                    worktree: None,     // Uses agent ID as worktree name
+                    env: None,          // No custom environment variables
                     mcp_servers: None,
                 },
                 AgentConfig {
@@ -148,7 +164,9 @@ impl ColonyConfig {
                     role: "Frontend Engineer".to_string(),
                     focus: "React components and UI implementation".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
-                    directory: None, // Uses Git worktree
+                    directory: None,    // Uses Git worktree
+                    worktree: None,     // Uses agent ID as worktree name
+                    env: None,          // No custom environment variables
                     mcp_servers: None,
                 },
             ],
@@ -250,6 +268,8 @@ mod tests {
                     focus: "Testing".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
                     directory: None,
+                    worktree: None,
+                    env: None,
                     mcp_servers: None,
                 },
                 AgentConfig {
@@ -258,6 +278,8 @@ mod tests {
                     focus: "Testing".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
                     directory: None,
+                    worktree: None,
+                    env: None,
                     mcp_servers: None,
                 },
             ],

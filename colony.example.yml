@@ -12,6 +12,12 @@ agents:
     model: claude-opus-4-20250514
     # Optional: Custom directory (uses git worktree if not specified)
     # directory: ~/projects/my-backend
+    # Optional: Worktree name (defaults to agent ID if not specified)
+    # worktree: shared-backend
+    # Optional: Environment variables for this agent
+    env:
+      NODE_ENV: development
+      DEBUG: "api:*"
     # Optional: MCP servers for this agent
     mcp_servers:
       filesystem:
@@ -82,6 +88,35 @@ agents:
     model: claude-sonnet-4-20250514
     # No MCP servers configured - will use repo's .claude/settings.json if present
 
+  # Example 6: Multiple agents sharing the same worktree
+  - id: review-1
+    role: Code Reviewer
+    focus: Review backend changes
+    model: claude-opus-4-20250514
+    worktree: shared-review  # Shares worktree with review-2
+    env:
+      REVIEWER_ROLE: backend
+
+  - id: review-2
+    role: Code Reviewer
+    focus: Review frontend changes
+    model: claude-opus-4-20250514
+    worktree: shared-review  # Shares worktree with review-1
+    env:
+      REVIEWER_ROLE: frontend
+
+  # Example 7: Agent with extensive environment configuration
+  - id: integration-test
+    role: Integration Tester
+    focus: Run integration tests
+    model: claude-sonnet-4-20250514
+    env:
+      TEST_ENV: integration
+      DATABASE_URL: postgresql://localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379
+      API_KEY: test_key_12345
+      LOG_LEVEL: debug
+
 # Configuration Notes:
 #
 # 1. Agent ID Requirements:
@@ -95,11 +130,25 @@ agents:
 #    - claude-haiku-4-20250514 (fastest, more economical)
 #
 # 3. Directory Options:
-#    - If not specified: Agent works in git worktree at .colony/worktrees/{agent-id}
+#    - If not specified: Agent works in git worktree at .colony/worktrees/{worktree-name}
 #    - If specified: Agent works in that directory (must exist)
 #    - Supports ~ for home directory expansion
 #
-# 4. MCP Server Configuration:
+# 4. Worktree Sharing:
+#    - worktree field specifies the worktree name (defaults to agent ID)
+#    - Multiple agents can share the same worktree by using the same worktree name
+#    - Shared worktrees allow agents to collaborate in the same codebase
+#    - Only one worktree is created per unique worktree name
+#    - Example: Two code reviewers working on different aspects of the same code
+#
+# 5. Environment Variables:
+#    - env field allows setting environment variables for each agent's pane
+#    - Variables are exported before running Claude Code
+#    - Useful for per-agent configuration (API keys, database URLs, debug flags)
+#    - Variables are shell-escaped for security
+#    - Example: Different test environments, feature flags, or credentials per agent
+#
+# 6. MCP Server Configuration:
 #    - Each agent can have its own set of MCP servers
 #    - Merges with existing .claude/settings.json in the working directory
 #    - Agent-specific MCP servers override repo-level settings
@@ -108,9 +157,9 @@ agents:
 #      * command: The executable to run
 #    - Optional fields:
 #      * args: Array of command-line arguments
-#      * env: Map of environment variables
+#      * env: Map of environment variables (for the MCP server)
 #
-# 5. Common MCP Servers:
+# 7. Common MCP Servers:
 #    - @modelcontextprotocol/server-filesystem - File system access
 #    - @modelcontextprotocol/server-git - Git operations
 #    - @modelcontextprotocol/server-github - GitHub API access
@@ -119,7 +168,7 @@ agents:
 #    - @modelcontextprotocol/server-aws - AWS operations
 #    - @modelcontextprotocol/server-slack - Slack integration
 #
-# 6. Settings Merging:
+# 8. Settings Merging:
 #    - If .claude/settings.json exists in the working directory, it's loaded first
 #    - Agent-specific MCP servers are merged in, overriding conflicts
 #    - Final merged settings are written to .colony/projects/{agent-id}/.claude/settings.json
