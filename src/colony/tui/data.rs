@@ -34,7 +34,7 @@ impl ColonyData {
         let colony_root = PathBuf::from(".colony");
 
         if !colony_root.exists() {
-            return Err("Colony not initialized. Run 'forge colony start' first.".to_string());
+            return Err("Colony not initialized. Run 'colony start' first.".to_string());
         }
 
         // Load configuration

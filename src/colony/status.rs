@@ -11,7 +11,7 @@ pub async fn run() -> ColonyResult<()> {
 
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Colony(
-            "colony.yml not found. Run 'forge colony init' first.".to_string(),
+            "colony.yml not found. Run 'colony init' first.".to_string(),
         ));
     }
 
@@ -25,7 +25,7 @@ pub async fn run() -> ColonyResult<()> {
     // Load state
     controller.load_state()?;
 
-    utils::header("Forge Colony Status");
+    utils::header("Colony Status");
 
     if controller.agents().is_empty() {
         utils::info("No agents configured");

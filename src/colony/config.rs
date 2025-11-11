@@ -98,7 +98,7 @@ impl ColonyConfig {
     /// Uses config name if set, otherwise falls back to current directory name
     pub fn session_name(&self) -> String {
         if let Some(name) = &self.name {
-            format!("forge-colony-{}", name)
+            format!("colony-{}", name)
         } else {
             // Use current directory name
             let cwd = std::env::current_dir().ok();
@@ -120,7 +120,7 @@ impl ColonyConfig {
                 })
                 .collect::<String>();
 
-            format!("forge-colony-{}", sanitized)
+            format!("colony-{}", sanitized)
         }
     }
 

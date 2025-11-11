@@ -17,7 +17,7 @@ fn load_task_queue() -> ColonyResult<TaskQueue> {
 
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Colony(
-            "colony.yml not found. Run 'forge colony init' first.".to_string(),
+            "colony.yml not found. Run 'colony init' first.".to_string(),
         ));
     }
 

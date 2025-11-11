@@ -10,7 +10,7 @@ pub async fn run() -> ColonyResult<()> {
 
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Colony(
-            "colony.yml not found. Run 'forge colony init' first.".to_string(),
+            "colony.yml not found. Run 'colony init' first.".to_string(),
         ));
     }
 
@@ -28,7 +28,7 @@ pub async fn run() -> ColonyResult<()> {
     // Check if session exists
     if !tmux::session_exists(&session_name) {
         return Err(crate::error::ColonyError::Colony(format!(
-            "No tmux session '{}' found. Start the colony with 'forge colony start' first.",
+            "No tmux session '{}' found. Start the colony with 'colony start' first.",
             session_name
         )));
     }

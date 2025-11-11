@@ -12,7 +12,7 @@ pub async fn run() -> ColonyResult<()> {
     // Check if we're in a Git repository
     if !worktree::is_git_repo() {
         return Err(crate::error::ColonyError::Colony(
-            "forge colony must be run inside a Git repository".to_string(),
+            "colony must be run inside a Git repository".to_string(),
         ));
     }
 
@@ -42,8 +42,8 @@ pub async fn run() -> ColonyResult<()> {
     utils::success("Initialized task queue directories");
     utils::info("\nNext steps:");
     println!("  1. Edit colony.yml to configure your agents");
-    println!("  2. Run 'forge colony start' to spawn agents");
-    println!("  3. Use 'forge colony status' to monitor progress");
+    println!("  2. Run 'colony start' to spawn agents");
+    println!("  3. Use 'colony status' to monitor progress");
 
     // Show the generated config
     println!("\nGenerated configuration:");

@@ -23,7 +23,7 @@ pub async fn run() -> ColonyResult<()> {
         return Ok(());
     }
 
-    utils::header("Destroying Forge Colony");
+    utils::header("Destroying Colony");
 
     // Load configuration
     let config = ColonyConfig::load(config_path)?;
@@ -113,7 +113,7 @@ pub async fn run() -> ColonyResult<()> {
 
     utils::success("Colony destroyed successfully");
     utils::info("\nThe colony.yml file has been preserved.");
-    utils::info("Run 'forge colony start' to recreate the colony.");
+    utils::info("Run 'colony start' to recreate the colony.");
 
     Ok(())
 }

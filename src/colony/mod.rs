@@ -1,4 +1,4 @@
-/// Forge Colony - Multi-Agent Orchestration for Claude Code
+/// Colony - Multi-Agent Orchestration for Claude Code
 ///
 /// This module provides commands for managing multiple Claude Code instances
 /// running in parallel with proper isolation and state management.

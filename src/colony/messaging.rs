@@ -352,7 +352,7 @@ esac
 pub fn create_messaging_readme(colony_root: &Path) -> ColonyResult<()> {
     let readme_path = colony_root.join("COLONY_COMMUNICATION.md");
 
-    let content = r#"# Forge Colony Communication Guide
+    let content = r#"# Colony Communication Guide
 
 This colony uses a message queue system for inter-agent communication.
 

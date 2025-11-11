@@ -34,7 +34,7 @@ pub async fn list_messages(agent_id: String) -> ColonyResult<()> {
 
     if !colony_root.exists() {
         return Err(ColonyError::Colony(
-            "No colony found. Run 'forge colony init' first.".to_string(),
+            "No colony found. Run 'colony init' first.".to_string(),
         ));
     }
 
@@ -83,7 +83,7 @@ pub async fn list_all_messages() -> ColonyResult<()> {
 
     if !colony_root.exists() {
         return Err(ColonyError::Colony(
-            "No colony found. Run 'forge colony init' first.".to_string(),
+            "No colony found. Run 'colony init' first.".to_string(),
         ));
     }
 

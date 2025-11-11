@@ -12,7 +12,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Colony(
-            "colony.yml not found. Run 'forge colony init' first.".to_string(),
+            "colony.yml not found. Run 'colony init' first.".to_string(),
         ));
     }
 
@@ -39,7 +39,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Get the session name from config
     let session_name = config.session_name();
 
-    utils::header("Starting Forge Colony");
+    utils::header("Starting Colony");
     utils::info(&format!("Session name: {}", session_name));
 
     // Create controller
@@ -177,13 +177,13 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Create TUI pane for monitoring
     utils::info("Setting up orchestration TUI...");
 
-    // Get the path to the current forge executable
-    let forge_binary = std::env::current_exe().map_err(|e| {
-        crate::error::ColonyError::Colony(format!("Failed to get forge binary path: {}", e))
+    // Get the path to the current colony executable
+    let colony_binary = std::env::current_exe().map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to get colony binary path: {}", e))
     })?;
-    let forge_path = forge_binary.to_str().ok_or_else(|| {
+    let colony_path = colony_binary.to_str().ok_or_else(|| {
         crate::error::ColonyError::Colony(
-            "Forge binary path contains non-UTF-8 characters".to_string(),
+            "Colony binary path contains non-UTF-8 characters".to_string(),
         )
     })?;
 
@@ -200,7 +200,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     let tui_cmd = format!(
         "cd {} && {} colony tui",
         shell_escape(current_dir_str),
-        shell_escape(forge_path)
+        shell_escape(colony_path)
     );
 
     // Create a pane for the TUI
@@ -233,10 +233,10 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 
     if no_attach {
         println!("\nNext steps:");
-        println!("  • Run 'forge colony attach' to view agents and TUI in tmux");
+        println!("  • Run 'colony attach' to view agents and TUI in tmux");
         println!("  • The orchestration TUI is already running in a dedicated pane");
-        println!("  • Use 'forge colony status' to check agent status from CLI");
-        println!("  • Use 'forge colony logs <agent-id>' to view specific logs");
+        println!("  • Use 'colony status' to check agent status from CLI");
+        println!("  • Use 'colony logs <agent-id>' to view specific logs");
         println!("\nTip: Press Ctrl+B then D to detach from tmux without stopping agents");
     } else {
         println!("\nAttaching to tmux session...");
@@ -257,7 +257,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 async fn create_startup_prompt(agent: &crate::colony::Agent) -> ColonyResult<()> {
     let prompt_path = agent.project_path.join("startup_prompt.txt");
     let prompt = format!(
-        r#"# Welcome to Forge Colony
+        r#"# Welcome to Colony
 
 You are **{}** working as part of a multi-agent colony.
 

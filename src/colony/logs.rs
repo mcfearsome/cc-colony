@@ -10,7 +10,7 @@ pub async fn run(agent_id: Option<String>) -> ColonyResult<()> {
 
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Colony(
-            "colony.yml not found. Run 'forge colony init' first.".to_string(),
+            "colony.yml not found. Run 'colony init' first.".to_string(),
         ));
     }
 
@@ -91,7 +91,7 @@ fn list_agent_logs(controller: &ColonyController) -> ColonyResult<()> {
     }
 
     println!();
-    utils::info("Use 'forge colony logs <agent-id>' to view specific logs");
+    utils::info("Use 'colony logs <agent-id>' to view specific logs");
 
     Ok(())
 }

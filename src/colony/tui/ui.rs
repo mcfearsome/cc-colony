@@ -43,7 +43,7 @@ fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Forge Colony Orchestration"),
+                .title("Colony Orchestration"),
         )
         .select(app.current_tab.index())
         .style(Style::default().fg(Color::White))
@@ -308,8 +308,8 @@ fn render_help(f: &mut Frame, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from("  This TUI provides real-time monitoring and interaction with the Forge"),
-        Line::from("  colony orchestration system. Use it to view agent status, track tasks,"),
+        Line::from("  This TUI provides real-time monitoring and interaction with the colony"),
+        Line::from("  orchestration system. Use it to view agent status, track tasks,"),
         Line::from("  monitor messages, and interact with the colony."),
         Line::from(""),
         Line::from("  Data refreshes automatically every 2 seconds. Press 'r' to force refresh."),
