@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{messaging, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{executor, messaging, tmux, AgentStatus, ColonyConfig, ColonyController};
 use crate::error::ColonyResult;
 use crate::utils;
 
@@ -240,6 +240,160 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         println!();
     }
 
+    // Create MCP Executor pane if enabled
+    let mut executor_pane_index: Option<usize> = None;
+    if let Some(executor_config) = &controller.config().executor {
+        if executor_config.enabled {
+            utils::info("Setting up MCP Executor pane...");
+
+            // Set up executor environment
+            executor::setup_executor_environment(
+                controller.colony_root(),
+                executor_config,
+            )?;
+
+            // Get the executor project path
+            let executor_project_path = controller
+                .colony_root()
+                .join(".colony/projects")
+                .join(&executor_config.agent_id);
+
+            let executor_project_str = executor_project_path.to_str().ok_or_else(|| {
+                crate::error::ColonyError::Colony(
+                    "Invalid executor project path: contains non-UTF-8 characters".to_string(),
+                )
+            })?;
+
+            // Get the current directory for the executor to run in
+            let executor_work_dir = std::env::current_dir().map_err(|e| {
+                crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e))
+            })?;
+            let executor_work_dir_str = executor_work_dir.to_str().ok_or_else(|| {
+                crate::error::ColonyError::Colony(
+                    "Current directory path contains non-UTF-8 characters".to_string(),
+                )
+            })?;
+
+            // Build environment variables for the executor
+            let executor_env = format!(
+                "export COLONY_AGENT_ID={}",
+                shell_escape(&executor_config.agent_id)
+            );
+
+            // Create settings.json for executor if it has MCP servers configured
+            if executor_config.has_mcp_servers() {
+                match create_executor_settings(&executor_project_path, executor_config).await {
+                    Ok(()) => {
+                        utils::info("  Created executor settings.json with MCP server configuration");
+                    }
+                    Err(e) => {
+                        utils::warning(&format!(
+                            "  Failed to create executor settings: {}. Executor will not have MCP servers.",
+                            e
+                        ));
+                    }
+                }
+            }
+
+            // Build the Claude command for the executor
+            let executor_cmd = if executor_config.has_mcp_servers() {
+                let executor_settings_path = executor_project_path.join(".claude/settings.json");
+                let executor_settings_str = executor_settings_path.to_str().ok_or_else(|| {
+                    crate::error::ColonyError::Colony(
+                        "Invalid executor settings path: contains non-UTF-8 characters".to_string(),
+                    )
+                })?;
+                format!(
+                    "{} && cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                    executor_env,
+                    shell_escape(executor_work_dir_str),
+                    shell_escape(executor_project_str),
+                    shell_escape(executor_settings_str)
+                )
+            } else {
+                format!(
+                    "{} && cd {} && claude --project {} --dangerously-skip-permissions",
+                    executor_env,
+                    shell_escape(executor_work_dir_str),
+                    shell_escape(executor_project_str)
+                )
+            };
+
+            // Create the executor pane
+            let executor_pane_idx = agent_count;
+            executor_pane_index = Some(executor_pane_idx);
+
+            if agent_count > 0 {
+                tmux::split_vertical(&session_name, &executor_cmd)?;
+            } else {
+                // If no agents (unusual case), send to first pane
+                tmux::send_command_to_pane(&session_name, 0, &executor_cmd)?;
+            }
+
+            tmux::set_pane_title(
+                &session_name,
+                executor_pane_idx,
+                &format!("MCP Executor: {}", executor_config.agent_id),
+            )?;
+
+            // Enable output capture for executor pane
+            #[cfg(unix)]
+            {
+                let executor_log_path = controller
+                    .colony_root()
+                    .join(".colony/logs")
+                    .join(format!("{}.log", executor_config.agent_id));
+                let log_path_str = executor_log_path.to_str().ok_or_else(|| {
+                    crate::error::ColonyError::Colony(
+                        "Invalid executor log path: contains non-UTF-8 characters".to_string(),
+                    )
+                })?;
+                let log_path = shell_escape(log_path_str);
+                let escaped_session = shell_escape(&session_name);
+                let pipe_cmd = format!(
+                    "tmux pipe-pane -t {}:{} 'cat >> {}'",
+                    escaped_session, executor_pane_idx, log_path
+                );
+                let _ = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&pipe_cmd)
+                    .output();
+            }
+
+            // Send startup prompt to the executor pane
+            let executor_prompt_path = executor_project_path.join(".claude/startup_prompt.txt");
+            if executor_prompt_path.exists() {
+                match tokio::fs::read_to_string(&executor_prompt_path).await {
+                    Ok(prompt) => {
+                        // Wait for Claude to initialize
+                        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+                        if let Err(e) = send_prompt_to_pane(&session_name, executor_pane_idx, &prompt) {
+                            utils::warning(&format!(
+                                "  Failed to send startup prompt to executor: {}",
+                                e
+                            ));
+                        } else {
+                            utils::info("  Sent startup prompt to executor");
+                        }
+                    }
+                    Err(e) => {
+                        utils::warning(&format!(
+                            "  Failed to read executor startup prompt: {}",
+                            e
+                        ));
+                    }
+                }
+            }
+
+            utils::success(&format!(
+                "  MCP Executor '{}' started in pane {}",
+                executor_config.agent_id, executor_pane_idx
+            ));
+            println!();
+        }
+    }
+
     // Create TUI pane for monitoring
     utils::info("Setting up orchestration TUI...");
 
@@ -272,7 +426,8 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Create a pane for the TUI
     if agent_count > 0 {
         tmux::split_vertical(&session_name, &tui_cmd)?;
-        let tui_pane_index = agent_count; // Next pane after all agents
+        // TUI pane index: agents + executor (if enabled)
+        let tui_pane_index = agent_count + if executor_pane_index.is_some() { 1 } else { 0 };
         tmux::set_pane_title(&session_name, tui_pane_index, "Orchestration TUI")?;
         utils::success("  Orchestration TUI pane created");
     }
@@ -511,12 +666,30 @@ fn setup_messaging_infrastructure(controller: &ColonyController) -> ColonyResult
         std::fs::create_dir_all(&sent_dir)?;
     }
 
+    // Create inbox for executor if enabled
+    if let Some(executor_config) = &controller.config().executor {
+        if executor_config.enabled {
+            let inbox_dir = messages_dir.join(&executor_config.agent_id);
+            std::fs::create_dir_all(&inbox_dir)?;
+
+            let sent_dir = inbox_dir.join("sent");
+            std::fs::create_dir_all(&sent_dir)?;
+        }
+    }
+
     // Create messaging README
     messaging::create_messaging_readme(colony_root)?;
 
     // Create helper scripts for each agent
     for agent in controller.agents().values() {
         messaging::create_message_helper_script(colony_root, agent.id())?;
+    }
+
+    // Create helper script for executor if enabled
+    if let Some(executor_config) = &controller.config().executor {
+        if executor_config.enabled {
+            messaging::create_message_helper_script(colony_root, &executor_config.agent_id)?;
+        }
     }
 
     Ok(())
@@ -564,6 +737,28 @@ fn send_prompt_to_pane(session_name: &str, pane_index: usize, prompt: &str) -> C
             String::from_utf8_lossy(&output.stderr)
         )));
     }
+
+    Ok(())
+}
+
+/// Create executor settings.json with MCP server configuration
+/// Uses the same approach as agent settings
+async fn create_executor_settings(
+    executor_project_path: &Path,
+    executor_config: &crate::colony::config::ExecutorConfig,
+) -> ColonyResult<()> {
+    // Create the executor's .claude directory
+    let claude_dir = executor_project_path.join(".claude");
+    tokio::fs::create_dir_all(&claude_dir).await?;
+
+    // Generate settings JSON from executor config (same as agents)
+    let settings_json_str = executor_config.generate_settings_json()?;
+
+    // Write settings.json file
+    let settings_path = claude_dir.join("settings.json");
+    let mut file = File::create(&settings_path).await?;
+    file.write_all(settings_json_str.as_bytes()).await?;
+    file.flush().await?;
 
     Ok(())
 }

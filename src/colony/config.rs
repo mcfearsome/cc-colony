@@ -12,6 +12,9 @@ pub struct ColonyConfig {
     #[serde(default)]
     pub name: Option<String>,
     pub agents: Vec<AgentConfig>,
+    /// Optional MCP executor configuration
+    #[serde(default)]
+    pub executor: Option<ExecutorConfig>,
 }
 
 /// Configuration for a single agent
@@ -58,6 +61,88 @@ pub struct McpServerConfig {
     /// Optional environment variables for the MCP server
     #[serde(default)]
     pub env: Option<HashMap<String, String>>,
+}
+
+/// Configuration for the MCP executor pane
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutorConfig {
+    /// Whether the executor is enabled (defaults to false)
+    #[serde(default)]
+    pub enabled: bool,
+    /// Agent ID for the executor (defaults to "mcp-executor")
+    #[serde(default = "default_executor_id")]
+    pub agent_id: String,
+    /// MCP servers configuration for the executor (same format as agents)
+    #[serde(default)]
+    pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+    /// Supported languages for MCP execution
+    /// Defaults to ["typescript", "python"]
+    #[serde(default = "default_languages")]
+    pub languages: Vec<String>,
+}
+
+fn default_executor_id() -> String {
+    "mcp-executor".to_string()
+}
+
+fn default_languages() -> Vec<String> {
+    vec!["typescript".to_string(), "python".to_string()]
+}
+
+impl Default for ExecutorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            agent_id: default_executor_id(),
+            mcp_servers: None,
+            languages: default_languages(),
+        }
+    }
+}
+
+impl ExecutorConfig {
+    /// Generate Claude Code settings.json content with MCP server configuration
+    /// Uses the same logic as AgentConfig
+    pub fn generate_settings_json(&self) -> ColonyResult<String> {
+        use serde_json::{json, Value};
+
+        let mut settings = json!({});
+
+        // Add MCP servers if configured
+        if let Some(mcp_servers) = &self.mcp_servers {
+            let mut mcp_config: HashMap<String, Value> = HashMap::new();
+
+            for (name, server_config) in mcp_servers {
+                let mut server = json!({
+                    "command": server_config.command,
+                });
+
+                // Add args if present
+                if let Some(args) = &server_config.args {
+                    server["args"] = json!(args);
+                }
+
+                // Add env if present
+                if let Some(env) = &server_config.env {
+                    server["env"] = json!(env);
+                }
+
+                mcp_config.insert(name.clone(), server);
+            }
+
+            settings["mcpServers"] = json!(mcp_config);
+        }
+
+        let json_str = serde_json::to_string_pretty(&settings)
+            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e)))?;
+
+        Ok(json_str)
+    }
+
+    /// Check if this executor has MCP server configuration
+    pub fn has_mcp_servers(&self) -> bool {
+        self.mcp_servers.as_ref().map_or(false, |s| !s.is_empty())
+    }
 }
 
 impl AgentConfig {
@@ -152,6 +237,7 @@ impl ColonyConfig {
     pub fn default() -> Self {
         ColonyConfig {
             name: None, // Will default to directory name
+            executor: None, // Executor disabled by default
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),

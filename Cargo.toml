@@ -1,9 +1,9 @@
 [package]
 name = "cc-colony"
-version = "0.4.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Colony Team"]
-description = "Multi-agent orchestration for Claude Code on tmux"
+description = "Multi-agent orchestration for Claude Code with tmux and integrated MCP executor"
 license = "MIT"
 repository = "https://github.com/mcfearsome/cc-colony"
 homepage = "https://github.com/mcfearsome/cc-colony"

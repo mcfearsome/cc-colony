@@ -140,6 +140,33 @@ agents:
 
       Always follow OWASP Top 10 guidelines.
 
+# Optional: MCP Executor configuration
+# The executor provides a dedicated pane for running complex multi-tool MCP workflows
+# Other agents can send MCP tasks to the executor via colony messages
+executor:
+  # Enable the MCP executor (default: false)
+  enabled: true
+  # Agent ID for the executor (default: mcp-executor)
+  agent_id: mcp-executor
+  # MCP servers for the executor (same format as agent mcp_servers)
+  mcp_servers:
+    filesystem:
+      command: npx
+      args:
+        - -y
+        - "@modelcontextprotocol/server-filesystem"
+        - /tmp
+    database:
+      command: uvx
+      args:
+        - mcp-server-sqlite
+        - --db-path
+        - /path/to/database.sqlite
+  # Supported languages for MCP execution (default: [typescript, python])
+  languages:
+    - typescript
+    - python
+
 # Configuration Notes:
 #
 # 1. Agent ID Requirements:
@@ -204,3 +231,30 @@ agents:
 #    - Agent-specific MCP servers are merged in, overriding conflicts
 #    - Final merged settings are written to .colony/projects/{agent-id}/.claude/settings.json
 #    - Claude Code is invoked with --settings pointing to the merged file
+#
+# 10. MCP Executor:
+#    - The executor is a special agent dedicated to running MCP workflows
+#    - Other agents can send MCP task requests via colony messages
+#    - Reduces token usage by centralizing MCP operations (up to 98% reduction)
+#    - Executor configuration:
+#      * enabled: Set to true to enable the executor pane
+#      * agent_id: Identifier for the executor (used in messaging)
+#      * mcp_servers: MCP server configuration (same format as agent mcp_servers)
+#      * languages: Supported execution languages (typescript requires Deno, python requires Python 3.8+)
+#    - The executor has its own dedicated pane and message inbox
+#    - See .claude/skills/mcp-executor/COLONY-EXECUTOR.md for usage guide
+#    - Agents submit tasks using: ./colony_message.sh send mcp-executor "Execute MCP workflow: ..."
+#    - MCP servers are configured directly in colony.yml (same as agents)
+#    - Example:
+#      executor:
+#        enabled: true
+#        agent_id: mcp-executor
+#        mcp_servers:
+#          filesystem:
+#            command: npx
+#            args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+#          database:
+#            command: uvx
+#            args: ["mcp-server-sqlite", "--db-path", "/path/to/db.sqlite"]
+#        languages: ["typescript", "python"]
+#
