@@ -1,0 +1,126 @@
+# Colony Configuration Example
+# This file demonstrates all available configuration options
+
+# Optional: Name for this colony (defaults to directory name)
+# name: my-project
+
+agents:
+  # Example 1: Backend agent with filesystem MCP server
+  - id: backend-1
+    role: Backend Engineer
+    focus: API endpoints and server logic
+    model: claude-opus-4-20250514
+    # Optional: Custom directory (uses git worktree if not specified)
+    # directory: ~/projects/my-backend
+    # Optional: MCP servers for this agent
+    mcp_servers:
+      filesystem:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-filesystem"
+          - /path/to/allowed/directory
+
+  # Example 2: Frontend agent with multiple MCP servers
+  - id: frontend-1
+    role: Frontend Engineer
+    focus: React components and UI implementation
+    model: claude-sonnet-4-20250514
+    mcp_servers:
+      # Browser automation for testing
+      puppeteer:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-puppeteer"
+      # Git integration
+      git:
+        command: uvx
+        args:
+          - mcp-server-git
+          - --repository
+          - /path/to/repo
+
+  # Example 3: DevOps agent with custom environment variables
+  - id: devops-1
+    role: DevOps Engineer
+    focus: Infrastructure and deployment
+    model: claude-opus-4-20250514
+    directory: ~/projects/infrastructure
+    mcp_servers:
+      # AWS integration with credentials
+      aws:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-aws"
+        env:
+          AWS_REGION: us-west-2
+          AWS_PROFILE: default
+      # Docker management
+      docker:
+        command: docker-mcp-server
+
+  # Example 4: Database agent with PostgreSQL MCP server
+  - id: database-1
+    role: Database Engineer
+    focus: Schema design and query optimization
+    model: claude-sonnet-4-20250514
+    mcp_servers:
+      postgres:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-postgres"
+        env:
+          POSTGRES_CONNECTION_STRING: postgresql://localhost:5432/mydb
+
+  # Example 5: Agent without MCP servers (uses defaults or repo settings)
+  - id: docs-1
+    role: Documentation Specialist
+    focus: Writing and maintaining documentation
+    model: claude-sonnet-4-20250514
+    # No MCP servers configured - will use repo's .claude/settings.json if present
+
+# Configuration Notes:
+#
+# 1. Agent ID Requirements:
+#    - Must be unique within the colony
+#    - Can only contain alphanumeric characters, hyphens, and underscores
+#    - Used for directory names and messaging
+#
+# 2. Model Options:
+#    - claude-opus-4-20250514 (most capable, slower)
+#    - claude-sonnet-4-20250514 (balanced, default)
+#    - claude-haiku-4-20250514 (fastest, more economical)
+#
+# 3. Directory Options:
+#    - If not specified: Agent works in git worktree at .colony/worktrees/{agent-id}
+#    - If specified: Agent works in that directory (must exist)
+#    - Supports ~ for home directory expansion
+#
+# 4. MCP Server Configuration:
+#    - Each agent can have its own set of MCP servers
+#    - Merges with existing .claude/settings.json in the working directory
+#    - Agent-specific MCP servers override repo-level settings
+#    - Server name is the key (e.g., "filesystem", "git", "aws")
+#    - Required fields:
+#      * command: The executable to run
+#    - Optional fields:
+#      * args: Array of command-line arguments
+#      * env: Map of environment variables
+#
+# 5. Common MCP Servers:
+#    - @modelcontextprotocol/server-filesystem - File system access
+#    - @modelcontextprotocol/server-git - Git operations
+#    - @modelcontextprotocol/server-github - GitHub API access
+#    - @modelcontextprotocol/server-postgres - PostgreSQL database
+#    - @modelcontextprotocol/server-puppeteer - Browser automation
+#    - @modelcontextprotocol/server-aws - AWS operations
+#    - @modelcontextprotocol/server-slack - Slack integration
+#
+# 6. Settings Merging:
+#    - If .claude/settings.json exists in the working directory, it's loaded first
+#    - Agent-specific MCP servers are merged in, overriding conflicts
+#    - Final merged settings are written to .colony/projects/{agent-id}/.claude/settings.json
+#    - Claude Code is invoked with --settings pointing to the merged file

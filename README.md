@@ -12,6 +12,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - **Inter-Agent Messaging**: Broadcast messages and communicate between agents
 - **Interactive TUI**: Monitor and control your colony with a terminal UI
 - **Git Worktree Isolation**: Each agent works in its own git worktree
+- **Per-Agent MCP Configuration**: Each agent can have its own MCP server setup
 
 ## Commands
 
@@ -60,7 +61,40 @@ cargo install --path .
 
 ## Configuration
 
-Colony is configured via `colony.yml`. See the initialization output for configuration options.
+Colony is configured via `colony.yml`. See the initialization output for basic configuration options, or check `colony.example.yml` for a comprehensive example with all features including per-agent MCP server configuration.
+
+### Per-Agent MCP Servers
+
+Each agent can have its own MCP (Model Context Protocol) server configuration:
+
+```yaml
+agents:
+  - id: backend-1
+    role: Backend Engineer
+    focus: API development
+    model: claude-opus-4-20250514
+    mcp_servers:
+      filesystem:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-filesystem"
+          - /path/to/directory
+      git:
+        command: uvx
+        args:
+          - mcp-server-git
+          - --repository
+          - /path/to/repo
+```
+
+MCP servers configured in `colony.yml` will:
+- Merge with any existing `.claude/settings.json` in the working directory
+- Override repo-level settings with agent-specific configuration
+- Be written to `.colony/projects/{agent-id}/.claude/settings.json`
+- Be passed to Claude Code via the `--settings` flag
+
+See `colony.example.yml` for more examples of MCP server configurations.
 
 ## Dashboard
 

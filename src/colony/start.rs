@@ -100,6 +100,18 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             }
         }
 
+        // Create settings.json file if agent has MCP server configuration
+        if agent.config.has_mcp_servers() {
+            match create_agent_settings(agent).await {
+                Ok(()) => {
+                    utils::info(&format!("  Created settings.json with MCP server configuration"));
+                }
+                Err(e) => {
+                    utils::warning(&format!("  Failed to create settings.json: {}", e));
+                }
+            }
+        }
+
         // Build the claude command with properly escaped paths
         let worktree_path_str = agent.worktree_path.to_str().ok_or_else(|| {
             crate::error::ColonyError::Colony(format!(
@@ -114,11 +126,28 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             ))
         })?;
 
-        let claude_cmd = format!(
-            "cd {} && claude --project {} --dangerously-skip-permissions",
-            shell_escape(worktree_path_str),
-            shell_escape(project_path_str)
-        );
+        // Build Claude command with optional settings path
+        let claude_cmd = if agent.config.has_mcp_servers() {
+            let settings_path = agent.project_path.join(".claude").join("settings.json");
+            let settings_path_str = settings_path.to_str().ok_or_else(|| {
+                crate::error::ColonyError::Colony(format!(
+                    "Invalid settings path for agent '{}': contains non-UTF-8 characters",
+                    agent.id()
+                ))
+            })?;
+            format!(
+                "cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                shell_escape(worktree_path_str),
+                shell_escape(project_path_str),
+                shell_escape(settings_path_str)
+            )
+        } else {
+            format!(
+                "cd {} && claude --project {} --dangerously-skip-permissions",
+                shell_escape(worktree_path_str),
+                shell_escape(project_path_str)
+            )
+        };
 
         // If this is not the first agent, split the window
         if index > 0 {
@@ -327,6 +356,88 @@ Now get started on your assigned work! Remember to check for messages from your 
 
     let mut file = File::create(&prompt_path).await?;
     file.write_all(prompt.as_bytes()).await?;
+    file.flush().await?;
+
+    Ok(())
+}
+
+/// Create a settings.json file for an agent with MCP server configuration
+async fn create_agent_settings(agent: &crate::colony::Agent) -> ColonyResult<()> {
+    use serde_json::Value;
+
+    // Create .claude directory in the project path
+    let claude_dir = agent.project_path.join(".claude");
+    tokio::fs::create_dir_all(&claude_dir).await?;
+
+    // Check if there's an existing settings.json in the working directory
+    let worktree_settings_path = agent.worktree_path.join(".claude").join("settings.json");
+    let mut merged_settings: Value = serde_json::json!({});
+
+    if worktree_settings_path.exists() {
+        // Load existing settings from the working directory
+        match tokio::fs::read_to_string(&worktree_settings_path).await {
+            Ok(contents) => {
+                match serde_json::from_str::<Value>(&contents) {
+                    Ok(existing_settings) => {
+                        utils::info(&format!(
+                            "  Found existing .claude/settings.json in working directory, merging..."
+                        ));
+                        merged_settings = existing_settings;
+                    }
+                    Err(e) => {
+                        utils::warning(&format!(
+                            "  Failed to parse existing settings.json: {}",
+                            e
+                        ));
+                    }
+                }
+            }
+            Err(e) => {
+                utils::warning(&format!("  Failed to read existing settings.json: {}", e));
+            }
+        }
+    }
+
+    // Generate settings JSON from agent config
+    let agent_settings_str = agent.config.generate_settings_json()?;
+    let agent_settings: Value = serde_json::from_str(&agent_settings_str)?;
+
+    // Merge agent settings into the base settings (agent settings take precedence)
+    if let Some(agent_obj) = agent_settings.as_object() {
+        if let Some(merged_obj) = merged_settings.as_object_mut() {
+            for (key, value) in agent_obj {
+                // For mcpServers, merge at the server level
+                if key == "mcpServers" {
+                    if let Some(existing_mcp) = merged_obj.get_mut("mcpServers") {
+                        if let (Some(existing_map), Some(new_map)) =
+                            (existing_mcp.as_object_mut(), value.as_object())
+                        {
+                            // Merge MCP servers, agent config overrides
+                            for (server_name, server_config) in new_map {
+                                existing_map.insert(server_name.clone(), server_config.clone());
+                            }
+                            continue;
+                        }
+                    }
+                }
+                // For other keys, agent config completely overrides
+                merged_obj.insert(key.clone(), value.clone());
+            }
+        }
+    }
+
+    // If merged_settings is still empty, use agent settings directly
+    if merged_settings.as_object().map_or(true, |o| o.is_empty()) {
+        merged_settings = agent_settings;
+    }
+
+    // Write merged settings.json file
+    let settings_json = serde_json::to_string_pretty(&merged_settings)
+        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize merged settings: {}", e)))?;
+
+    let settings_path = claude_dir.join("settings.json");
+    let mut file = File::create(&settings_path).await?;
+    file.write_all(settings_json.as_bytes()).await?;
     file.flush().await?;
 
     Ok(())
