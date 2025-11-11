@@ -126,6 +126,23 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             ))
         })?;
 
+        // Build environment variable exports if configured
+        let env_prefix = if let Some(env_vars) = &agent.config.env {
+            let exports: Vec<String> = env_vars
+                .iter()
+                .map(|(key, value)| {
+                    format!("export {}={}", shell_escape(key), shell_escape(value))
+                })
+                .collect();
+            if exports.is_empty() {
+                String::new()
+            } else {
+                format!("{} && ", exports.join(" && "))
+            }
+        } else {
+            String::new()
+        };
+
         // Build Claude command with optional settings path
         let claude_cmd = if agent.config.has_mcp_servers() {
             let settings_path = agent.project_path.join(".claude").join("settings.json");
@@ -136,14 +153,16 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 ))
             })?;
             format!(
-                "cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                "{}cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                env_prefix,
                 shell_escape(worktree_path_str),
                 shell_escape(project_path_str),
                 shell_escape(settings_path_str)
             )
         } else {
             format!(
-                "cd {} && claude --project {} --dangerously-skip-permissions",
+                "{}cd {} && claude --project {} --dangerously-skip-permissions",
+                env_prefix,
                 shell_escape(worktree_path_str),
                 shell_escape(project_path_str)
             )
