@@ -15,6 +15,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - **Shared Worktrees**: Multiple agents can collaborate in the same worktree
 - **Per-Agent Environment Variables**: Configure environment variables for each agent
 - **Per-Agent MCP Configuration**: Each agent can have its own MCP server setup
+- **Custom Instructions**: Automatically inject specialized prompts when agents start
 
 ## Commands
 
@@ -141,6 +142,57 @@ Environment variables are:
 - Isolated to each agent's pane
 - Shell-escaped for security
 - Useful for API keys, feature flags, and per-agent configuration
+
+### Custom Instructions
+
+Add specialized instructions to each agent's startup prompt:
+
+```yaml
+agents:
+  - id: security-auditor
+    role: Security Auditor
+    focus: Review code for security vulnerabilities
+    instructions: |
+      Your mission is to identify security vulnerabilities.
+
+      Focus areas:
+      - SQL injection vulnerabilities
+      - XSS (Cross-Site Scripting) issues
+      - Authentication and authorization flaws
+
+      When you find an issue:
+      1. Document the vulnerability
+      2. Assess severity (Critical/High/Medium/Low)
+      3. Provide a fix example
+```
+
+Custom instructions:
+- Are automatically sent to Claude when the agent starts
+- Appear after the standard colony prompt (role, focus, messaging)
+- Support multi-line YAML strings with `|`
+- Perfect for specialized behaviors, checklists, or workflows
+
+## Skills
+
+Colony includes built-in skills to help agents with common tasks:
+
+### Colony Message Skill
+
+The `colony-message` skill provides comprehensive guidance on using the inter-agent messaging system. Agents can invoke it to learn how to:
+- Send messages to specific agents
+- Broadcast to all agents
+- Check for incoming messages
+- Follow messaging best practices
+- Coordinate work with other agents
+
+**Usage:** Agents can refer to `.claude/skills/colony-message.md` or invoke the skill for messaging guidance.
+
+**Example workflows covered:**
+- Announcing work in progress
+- Requesting code reviews
+- Reporting bugs to the team
+- Coordinating on shared resources
+- Getting unblocked
 
 ## Dashboard
 

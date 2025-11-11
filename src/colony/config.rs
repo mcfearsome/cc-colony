@@ -41,6 +41,10 @@ pub struct AgentConfig {
     /// Optional MCP servers configuration for this agent
     #[serde(default)]
     pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+    /// Optional custom instructions appended to the generated prompt
+    /// This will be added after the standard colony prompt (role, focus, messaging)
+    #[serde(default)]
+    pub instructions: Option<String>,
 }
 
 /// Configuration for an MCP server
@@ -158,6 +162,7 @@ impl ColonyConfig {
                     worktree: None,     // Uses agent ID as worktree name
                     env: None,          // No custom environment variables
                     mcp_servers: None,
+                    instructions: None, // No custom instructions
                 },
                 AgentConfig {
                     id: "frontend-1".to_string(),
@@ -168,6 +173,7 @@ impl ColonyConfig {
                     worktree: None,     // Uses agent ID as worktree name
                     env: None,          // No custom environment variables
                     mcp_servers: None,
+                    instructions: None, // No custom instructions
                 },
             ],
         }
@@ -271,6 +277,7 @@ mod tests {
                     worktree: None,
                     env: None,
                     mcp_servers: None,
+                    instructions: None,
                 },
                 AgentConfig {
                     id: "test".to_string(),
@@ -281,6 +288,7 @@ mod tests {
                     worktree: None,
                     env: None,
                     mcp_servers: None,
+                    instructions: None,
                 },
             ],
         };

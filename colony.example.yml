@@ -117,6 +117,29 @@ agents:
       API_KEY: test_key_12345
       LOG_LEVEL: debug
 
+  # Example 8: Agent with custom instructions
+  - id: security-auditor
+    role: Security Auditor
+    focus: Review code for security vulnerabilities
+    model: claude-opus-4-20250514
+    instructions: |
+      Your mission is to identify security vulnerabilities in the codebase.
+
+      Focus areas:
+      - SQL injection vulnerabilities
+      - XSS (Cross-Site Scripting) issues
+      - Authentication and authorization flaws
+      - Insecure data handling
+      - CSRF protection
+
+      When you find an issue:
+      1. Document the vulnerability with a clear explanation
+      2. Assess the severity (Critical, High, Medium, Low)
+      3. Provide a code example of the fix
+      4. Create a task in the task queue for remediation
+
+      Always follow OWASP Top 10 guidelines.
+
 # Configuration Notes:
 #
 # 1. Agent ID Requirements:
@@ -148,7 +171,15 @@ agents:
 #    - Variables are shell-escaped for security
 #    - Example: Different test environments, feature flags, or credentials per agent
 #
-# 6. MCP Server Configuration:
+# 6. Custom Instructions:
+#    - instructions field allows adding custom instructions to the agent's startup prompt
+#    - Instructions are appended after the standard colony prompt
+#    - Sent automatically to Claude when the agent starts via tmux send-keys
+#    - Use multi-line strings with | for longer instructions
+#    - Perfect for specialized behaviors, focus areas, or workflows
+#    - Example: Security checklist, coding standards, specific testing procedures
+#
+# 7. MCP Server Configuration:
 #    - Each agent can have its own set of MCP servers
 #    - Merges with existing .claude/settings.json in the working directory
 #    - Agent-specific MCP servers override repo-level settings
@@ -159,7 +190,7 @@ agents:
 #      * args: Array of command-line arguments
 #      * env: Map of environment variables (for the MCP server)
 #
-# 7. Common MCP Servers:
+# 8. Common MCP Servers:
 #    - @modelcontextprotocol/server-filesystem - File system access
 #    - @modelcontextprotocol/server-git - Git operations
 #    - @modelcontextprotocol/server-github - GitHub API access
@@ -168,7 +199,7 @@ agents:
 #    - @modelcontextprotocol/server-aws - AWS operations
 #    - @modelcontextprotocol/server-slack - Slack integration
 #
-# 8. Settings Merging:
+# 9. Settings Merging:
 #    - If .claude/settings.json exists in the working directory, it's loaded first
 #    - Agent-specific MCP servers are merged in, overriding conflicts
 #    - Final merged settings are written to .colony/projects/{agent-id}/.claude/settings.json
