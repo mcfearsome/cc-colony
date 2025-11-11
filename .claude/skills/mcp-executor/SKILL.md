@@ -1,53 +1,52 @@
 ---
-name: code-executor
-description: Efficiently compose multiple MCP tool operations by launching a subagent that writes and executes TypeScript or Python code. Use when you need to compose 3+ MCP tool calls, process their results together, implement complex logic, or avoid token overhead from loading many MCP tool schemas into main context. The subagent has MCP servers configured and writes code that calls tools dynamically.
+name: mcp-executor
+description: Execute complex multi-tool MCP workflows directly using TypeScript or Python. As the MCP executor agent, you have MCP servers configured and write code that composes multiple tool calls. Use for 3+ MCP tool calls, complex data processing, parallel operations, or retry logic. This skill is colony-aware - you execute code directly via Bash without subagents.
 ---
 
-# Code Executor Skill
+# MCP Executor Skill (Colony Edition)
 
 ## Overview
 
-This skill teaches you (Main Claude Code) how to efficiently handle multi-tool MCP workflows by launching a subagent that writes and executes code to compose MCP tool calls.
+As the **MCP Executor Agent**, you directly execute complex multi-tool MCP workflows by writing and running TypeScript or Python code. You have MCP servers configured and available, enabling you to compose multiple tool calls efficiently.
 
-### Architecture
+### Architecture (Colony Mode)
 
 ```
-Main Context (YOU - no MCP servers configured)
+Other Agents (lightweight, no MCP servers)
     ↓
-    Recognize multi-tool MCP workflow needed
+    Send task request via colony messages
     ↓
-    Launch subagent via Task tool
+YOU (MCP Executor - has MCP servers configured)
     ↓
-Subagent Context (has MCP servers configured)
-    ↓
-    Write TypeScript/Python code
+    Write TypeScript/Python code directly
     ↓
     Execute code via Bash (deno/python)
     ↓
     Code calls multiple MCP tools via local MCP client
     ↓
-    Return results to YOU (main context)
+    Return results via colony messages
 ```
 
 ### Why This Architecture?
 
-**Problem**: Loading all MCP tool schemas into your main context causes token bloat (141k tokens for 47 tools).
+**Problem**: Loading all MCP tool schemas into every agent causes massive token bloat (141k tokens for 47 tools).
 
 **Solution**:
-- YOU (main) have NO MCP servers → no token bloat
-- Subagent has MCP servers → isolated context
-- Subagent writes code that calls multiple tools
-- Results return to you
+- Other agents have NO MCP servers → no token bloat
+- YOU have MCP servers → dedicated execution specialist
+- You write code that calls multiple tools in one execution
+- Results return to requesting agents via messages
 
 **Benefits**:
-- ✅ 98% token reduction in main context
+- ✅ 98% token reduction across the colony
 - ✅ Multi-tool composition in single execution
 - ✅ Complex logic, loops, data transformations
-- ✅ Subagent context disposed after task
+- ✅ Direct execution (no subagent overhead)
+- ✅ Centralized MCP expertise
 
-## When to Use This Pattern
+## When to Use Direct Execution
 
-### ✅ Launch Subagent With This Skill When:
+### ✅ Execute MCP Code Directly When:
 
 1. **Multi-tool MCP workflows** (3+ MCP tool calls needed)
    - Example: "List files, read each one, aggregate data, store in database"
@@ -69,447 +68,356 @@ Subagent Context (has MCP servers configured)
    - Example: "Retry database query with exponential backoff"
    - Example: "Try multiple data sources until one succeeds"
 
-### ❌ Don't Use This Pattern When:
+### ❌ Don't Use MCP Execution When:
 
-1. **Single simple MCP tool call** - Just call the tool directly
-2. **No MCP tools needed** - Use regular task planning
-3. **UI/user interaction required** - Use slash commands
-4. **Simple sequential operations** - Regular tool calls are clearer
+1. **Single simple MCP tool call** - Suggest the agent use their own MCP tools if available
+2. **No MCP tools needed** - Not an MCP executor task
+3. **UI/user interaction required** - Better handled by requesting agent
+4. **Simple sequential operations** - May not need specialized execution
 
-## How to Launch a Subagent
+## How to Execute MCP Workflows
 
-When you identify a multi-tool MCP workflow, use the Task tool to launch a subagent:
+When you receive an MCP task request via colony messages, follow this process:
 
-```typescript
-Task({
-  subagent_type: "general-purpose",
-  prompt: `You have access to MCP servers with the following tools:
-  - mcp__filesystem__readFile, writeFile, listDirectory
-  - mcp__database__query, insert, update
-  - [list the relevant tools for this task]
+### Step 1: Acknowledge the Task
 
-  Task: [Describe the multi-tool workflow clearly]
-
-  Instructions:
-  1. Reference the cached script pattern from scripts/[relevant-script].ts
-  2. Write TypeScript code that:
-     - Imports: import { callMCPTool } from '../../lib/mcp-client.ts';
-     - Calls MCP tools using callMCPTool('mcp__server__tool', params)
-     - Processes and transforms data as needed
-     - Returns summary of results
-  3. Execute the code via Bash with MCP_CONFIG_PATH set:
-     MCP_CONFIG_PATH=~/.claude/subagent-mcp.json deno run --allow-read --allow-run --allow-env /tmp/script.ts
-  4. Return the execution results
-
-  Use the pattern from: [specify cached script that matches]
-  - scripts/typescript/multi-tool-workflow.ts (sequential pipeline)
-  - scripts/typescript/parallel-execution.ts (concurrent operations)
-  - scripts/typescript/error-recovery.ts (retry logic)
-  - scripts/typescript/file-processing.ts (batch file ops)
-  - scripts/typescript/conditional-logic.ts (dynamic tool selection)
-  - scripts/typescript/data-aggregation.ts (multi-source merging)
-
-  Expected output: [What you need back from the subagent]`
-})
+```bash
+./colony_message.sh send <requesting-agent> "Task received: [brief description]
+Status: EXECUTING
+Expected time: [estimate]"
 ```
 
-## Cached Script Patterns
+### Step 2: Write the Execution Code
 
-The skill includes 12 proven script patterns (6 TypeScript + 6 Python) in the `scripts/` directory. **Always reference these** when launching subagents:
+Choose TypeScript (Deno) or Python based on the task requirements.
 
-### TypeScript Patterns
+**TypeScript Example:**
+```bash
+cat > /tmp/mcp_workflow.ts <<'EOF'
+import { callMCPTool, callMCPToolsParallel } from "./.claude/skills/mcp-executor/lib/mcp-client.ts";
 
-1. **`scripts/typescript/multi-tool-workflow.ts`**
-   - Sequential 5-step pipeline: Fetch → Transform → Validate → Store → Report
-   - Use for: Data processing pipelines where each step depends on previous
-
-2. **`scripts/typescript/parallel-execution.ts`**
-   - Concurrent operations with Promise.all and Promise.allSettled
-   - Use for: Fetching from multiple sources simultaneously
-
-3. **`scripts/typescript/error-recovery.ts`**
-   - Retry logic with exponential backoff, fallback strategies
-   - Use for: Unreliable APIs, failover patterns
-
-4. **`scripts/typescript/file-processing.ts`**
-   - Batch file operations: list → filter → process → aggregate
-   - Use for: Processing multiple files, generating reports
-
-5. **`scripts/typescript/conditional-logic.ts`**
-   - Dynamic tool selection based on runtime data
-   - Use for: Routing, adaptive workflows, decision trees
-
-6. **`scripts/typescript/data-aggregation.ts`**
-   - Fetch from multiple sources, transform to common format, merge
-   - Use for: Combining data from multiple databases/APIs
-
-### Python Patterns
-
-Same patterns available in `scripts/python/`:
-- `multi_tool_workflow.py`
-- `parallel_execution.py`
-- `error_recovery.py`
-- `file_processing.py`
-- `conditional_logic.py`
-- `data_aggregation.py`
-
-## Subagent Task Prompt Template
-
-Use this template when launching subagents:
-
-```typescript
-Task({
-  subagent_type: "general-purpose",
-  prompt: `You are a subagent with access to MCP servers. Write code to complete this task.
-
-  ## Available MCP Tools
-  [List the MCP servers/tools available - you should know these from your configuration]
-  - mcp__filesystem__readFile, writeFile, listDirectory
-  - mcp__database__query, insert
-  - [etc...]
-
-  ## Task
-  [Clear description of what needs to be done]
-
-  ## Instructions
-
-  1. **Reference Cached Pattern**
-     Use the pattern from: scripts/typescript/[most-similar-script].ts
-     - This script shows: [what pattern it demonstrates]
-     - Adapt it for: [how to modify for this task]
-
-  2. **Write TypeScript Code**
-     \`\`\`typescript
-     import { callMCPTool } from '../../lib/mcp-client.ts';
-
-     // [Step-by-step comments of what the code should do]
-     \`\`\`
-
-  3. **Tool Call Format**
-     - Format: callMCPTool('mcp__<server>__<tool>', { params })
-     - Example: callMCPTool('mcp__filesystem__readFile', { path: '/data/file.json' })
-
-  4. **Execute Code**
-     Run via Bash with MCP_CONFIG_PATH set:
-     \`\`\`bash
-     MCP_CONFIG_PATH=~/.claude/subagent-mcp.json deno run --allow-read --allow-run --allow-env /tmp/your-script.ts
-     \`\`\`
-
-  5. **Return Results**
-     Provide summary of:
-     - What was accomplished
-     - Number of records/files processed
-     - Any errors or warnings
-     - Final output data
-
-  ## Expected Output
-  [Specify exactly what data/summary you need back]
-
-  ## Error Handling
-  - Wrap all MCP calls in try/catch
-  - Log errors clearly
-  - [Any specific error handling needed]
-  `
-})
-```
-
-## Example: Complete Workflow
-
-### User Request
-"Read all JSON files in /tmp/data, aggregate the data, and store in database"
-
-### Your Response (Main Claude Code)
-
-You recognize this needs:
-- Multiple filesystem operations (list, read multiple files)
-- Data processing (parse JSON, aggregate)
-- Database operation (insert)
-
-**You launch subagent:**
-
-```typescript
-Task({
-  subagent_type: "general-purpose",
-  prompt: `You have access to MCP servers with these tools:
-  - mcp__filesystem__listDirectory
-  - mcp__filesystem__readFile
-  - mcp__database__insert
-
-  Task: Read all JSON files in /tmp/data, parse them, aggregate the data, and store in database table 'aggregated_data'.
-
-  Instructions:
-  1. Use the pattern from scripts/typescript/file-processing.ts
-     - It shows: batch file operations with filtering and aggregation
-     - Adapt it to: read JSON files specifically and store results in DB
-
-  2. Write TypeScript code that:
-     - Lists files in /tmp/data
-     - Filters for .json extension
-     - Reads each JSON file
-     - Parses and aggregates the data
-     - Stores aggregated results in database
-
-  3. Import the MCP client:
-     import { callMCPTool } from '../../lib/mcp-client.ts';
-
-  4. Execute via:
-     MCP_CONFIG_PATH=~/.claude/subagent-mcp.json deno run --allow-read --allow-run --allow-env /tmp/aggregate-files.ts
-
-  5. Return: Number of files processed and records stored
-
-  Expected output: "Processed X files, stored Y records in database"`
-})
-```
-
-### Subagent Executes
-
-1. Reads cached pattern from `scripts/typescript/file-processing.ts`
-2. Writes adapted code:
-
-```typescript
-import { callMCPTool } from '../../lib/mcp-client.ts';
-
-const files = await callMCPTool('mcp__filesystem__listDirectory', {
-  path: '/tmp/data'
+// Step 1: List files
+const files = await callMCPTool("mcp__filesystem__listDirectory", {
+  path: "/tmp/data"
 });
 
-const jsonFiles = files.filter(f => f.name.endsWith('.json'));
-const allData = [];
+// Step 2: Read all files in parallel
+const fileContents = await callMCPToolsParallel(
+  files.map(f => ({
+    tool: "mcp__filesystem__readFile",
+    params: { path: `/tmp/data/${f.name}` }
+  }))
+);
 
-for (const file of jsonFiles) {
-  const content = await callMCPTool('mcp__filesystem__readFile', {
-    path: file.path
-  });
-  allData.push(...JSON.parse(content));
-}
+// Step 3: Process and aggregate data
+const aggregated = fileContents.map(content => JSON.parse(content.data));
 
-const aggregated = {
-  total_records: allData.length,
-  data: allData,
-  timestamp: new Date().toISOString()
-};
-
-await callMCPTool('mcp__database__insert', {
-  table: 'aggregated_data',
-  record: aggregated
+// Step 4: Store results
+await callMCPTool("mcp__database__insert", {
+  table: "processed_data",
+  records: aggregated
 });
 
-console.log(`Processed ${jsonFiles.length} files, ${allData.length} records`);
+console.log(JSON.stringify({
+  success: true,
+  filesProcessed: files.length,
+  recordsInserted: aggregated.length
+}));
+EOF
 ```
 
-3. Executes code via Bash
-4. Returns: "Processed 15 files, 1,247 records stored in database"
+**Python Example:**
+```bash
+cat > /tmp/mcp_workflow.py <<'EOF'
+import sys
+sys.path.insert(0, './.claude/skills/mcp-executor')
+from lib.mcp_client import call_mcp_tool, call_mcp_tools_parallel
+import json
 
-### You Receive Results
+# Step 1: List files
+files = await call_mcp_tool("mcp__filesystem__listDirectory", {
+    "path": "/tmp/data"
+})
 
-You report to user:
-"✓ Successfully processed 15 JSON files from /tmp/data and stored 1,247 aggregated records in the database."
+# Step 2: Read all files in parallel
+file_contents = await call_mcp_tools_parallel([
+    {
+        "tool": "mcp__filesystem__readFile",
+        "params": {"path": f"/tmp/data/{f['name']}"}
+    }
+    for f in files
+])
 
-## Tool Naming Convention
+# Step 3: Process and aggregate
+aggregated = [json.loads(content["data"]) for content in file_contents]
 
-**Format**: `mcp__<server>__<tool>`
+# Step 4: Store results
+await call_mcp_tool("mcp__database__insert", {
+    "table": "processed_data",
+    "records": aggregated
+})
 
-**Examples**:
+print(json.dumps({
+    "success": True,
+    "filesProcessed": len(files),
+    "recordsInserted": len(aggregated)
+}))
+EOF
+```
+
+### Step 3: Execute the Code
+
+**TypeScript execution:**
+```bash
+deno run --allow-read --allow-run --allow-env /tmp/mcp_workflow.ts
+```
+
+**Python execution:**
+```bash
+python3 /tmp/mcp_workflow.py
+```
+
+### Step 4: Return Results
+
+```bash
+# Success
+./colony_message.sh send <requesting-agent> "MCP task completed: [summary]
+
+Result:
+{result_json}
+
+Status: SUCCESS
+Duration: [time]"
+
+# Or if error
+./colony_message.sh send <requesting-agent> "MCP task failed: [error details]
+
+Error: [error message]
+Step failed: [which step]
+
+Status: ERROR"
+```
+
+## Available Script Patterns
+
+Reference these cached patterns for common workflows:
+
+### TypeScript (Deno)
+- `scripts/typescript/multi-tool-workflow.ts` - Sequential data pipeline
+- `scripts/typescript/parallel-execution.ts` - Concurrent tool execution
+- `scripts/typescript/error-recovery.ts` - Retry logic with fallbacks
+- `scripts/typescript/conditional-logic.ts` - Dynamic tool selection
+- `scripts/typescript/file-processing.ts` - Batch file operations
+- `scripts/typescript/data-aggregation.ts` - Multi-source data merging
+
+### Python
+- `scripts/python/multi_tool_workflow.py` - Sequential data pipeline
+- `scripts/python/parallel_execution.py` - Concurrent tool execution
+- `scripts/python/error_recovery.py` - Retry logic with fallbacks
+- `scripts/python/conditional_logic.py` - Dynamic tool selection
+- `scripts/python/file_processing.py` - Batch file operations
+- `scripts/python/data_aggregation.py` - Multi-source data merging
+
+### Templates
+- `templates/basic-typescript.template.ts` - Single tool call template
+- `templates/basic-python.template.py` - Single tool call template
+- `templates/multi-tool.template.ts` - Multi-tool composition template
+- `templates/multi-tool.template.py` - Multi-tool composition template
+
+## MCP Tool Naming Convention
+
+All MCP tools follow this format:
+```
+mcp__<server-name>__<tool-name>
+```
+
+Examples:
 - `mcp__filesystem__readFile`
 - `mcp__database__query`
-- `mcp__github__createPullRequest`
-- `mcp__postgres__insert`
+- `mcp__github__createIssue`
+- `mcp__slack__sendMessage`
 
-The `<server>` name comes from the subagent's MCP configuration file (`.mcp.json` or `~/.claude/subagent-mcp.json`).
+## MCP Client Library Functions
 
-## Choosing TypeScript vs Python
+### TypeScript (mcp-client.ts)
 
-**TypeScript (Deno)**:
-- ✅ Strong typing with interfaces
-- ✅ Better for complex data transformations
-- ✅ Native async/await, Promise.all
-- ✅ Faster execution
-- ❌ Requires Deno installed
-
-**Python**:
-- ✅ More familiar to some developers
-- ✅ Better for data science/ML tasks
-- ✅ Rich standard library
-- ✅ Type hints with TypedDict
-- ❌ Slightly slower
-
-**Default recommendation**: Use TypeScript unless subagent explicitly needs Python libraries.
-
-## MCP Client Library
-
-The subagent uses a local MCP client library to call tools:
-
-**TypeScript**: `lib/mcp-client.ts`
 ```typescript
-import { callMCPTool, callMCPToolsParallel } from '../../lib/mcp-client.ts';
-
 // Single tool call
-const result = await callMCPTool('mcp__filesystem__readFile', {
-  path: '/data/file.json'
-});
+const result = await callMCPTool(toolName: string, params: object)
 
-// Parallel calls
-const [file1, file2, file3] = await callMCPToolsParallel([
-  { tool: 'mcp__filesystem__readFile', parameters: { path: '/data/1.json' } },
-  { tool: 'mcp__filesystem__readFile', parameters: { path: '/data/2.json' } },
-  { tool: 'mcp__filesystem__readFile', parameters: { path: '/data/3.json' } }
-]);
+// Parallel execution (fail-fast)
+const results = await callMCPToolsParallel(calls: ToolCall[])
+
+// Parallel execution (graceful failure)
+const results = await callMCPToolsParallelSettled(calls: ToolCall[])
 ```
 
-**Python**: `lib/mcp_client.py`
+### Python (mcp_client.py)
+
 ```python
-from lib.mcp_client import call_mcp_tool, call_mcp_tools_parallel
-
 # Single tool call
-result = await call_mcp_tool('mcp__filesystem__readFile', {
-    'path': '/data/file.json'
-})
+result = await call_mcp_tool(tool_name: str, params: dict)
 
-# Parallel calls
-results = await call_mcp_tools_parallel([
-    {'tool': 'mcp__filesystem__readFile', 'parameters': {'path': '/data/1.json'}},
-    {'tool': 'mcp__filesystem__readFile', 'parameters': {'path': '/data/2.json'}},
-    {'tool': 'mcp__filesystem__readFile', 'parameters': {'path': '/data/3.json'}}
-])
-```
+# Parallel execution (fail-fast)
+results = await call_mcp_tools_parallel(calls: List[dict])
 
-## Templates
-
-For simpler tasks, reference the templates in `templates/`:
-
-- `basic-typescript.template.ts` - Single tool call skeleton
-- `basic-python.template.py` - Single tool call skeleton
-- `multi-tool.template.ts` - Multiple tool composition
-- `multi-tool.template.py` - Multiple tool composition
-
-Tell the subagent: "Use the pattern from templates/basic-typescript.template.ts"
-
-## Error Handling
-
-Always instruct subagents to include error handling:
-
-```typescript
-try {
-  const result = await callMCPTool('mcp__database__query', {
-    query: 'SELECT * FROM users'
-  });
-  return { success: true, data: result };
-} catch (error) {
-  console.error('Database query failed:', error.message);
-  return { success: false, error: error.message };
-}
+# Parallel execution (graceful failure)
+results = await call_mcp_tools_parallel_safe(calls: List[dict])
 ```
 
 ## Best Practices
 
-### When Launching Subagents
+### 1. Code Organization
+- Start with imports and setup
+- Add clear comments for each step
+- Use descriptive variable names
+- Include error handling
 
-1. **Be specific about tools available**
-   - List the exact MCP tools the subagent has access to
-   - Don't assume subagent knows your MCP configuration
+### 2. Tool Selection
+- List all available tools in your planning
+- Choose the right tool for each operation
+- Consider using parallel execution for independent calls
+- Use sequential execution when results depend on each other
 
-2. **Reference cached patterns**
-   - Always point to the most similar cached script
-   - Explain how to adapt it for the current task
+### 3. Error Handling
+- Wrap risky operations in try-catch
+- Provide detailed error messages
+- Include which step failed
+- Suggest fixes when possible
 
-3. **Specify execution command**
-   - CRITICAL: Set `MCP_CONFIG_PATH=~/.claude/subagent-mcp.json` before command
-   - Include the full `deno run` or `python` command
-   - Include required permissions: `--allow-read --allow-run --allow-env`
-   - Example: `MCP_CONFIG_PATH=~/.claude/subagent-mcp.json deno run --allow-read --allow-run --allow-env script.ts`
+### 4. Performance
+- Use parallel execution for independent operations
+- Batch operations when possible
+- Consider memory usage for large datasets
+- Stream data for very large operations
 
-4. **Define expected output clearly**
-   - What data you need back
-   - What format (summary, full data, counts, etc.)
+### 5. Result Reporting
+- Return structured JSON results
+- Include success/failure status
+- Provide metrics (counts, timing, etc.)
+- Keep results concise but informative
 
-5. **Include error handling instructions**
-   - How to handle failures
-   - Whether to fail-fast or continue on errors
+## Advanced Patterns
 
-### When Subagent Writes Code
+### Pattern: Error Recovery with Retry
 
-(These are instructions for the subagent, but you should know them to guide effectively)
+```typescript
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error("Should not reach here");
+}
 
-1. **Always import MCP client first**
-   ```typescript
-   import { callMCPTool } from '../../lib/mcp-client.ts';
-   ```
+// Usage
+const data = await withRetry(() =>
+  callMCPTool("mcp__api__fetch", { url: "https://api.example.com/data" })
+);
+```
 
-2. **Use proper tool name format**
-   - Format: `mcp__<server>__<tool>`
-   - Match exactly to MCP configuration
+### Pattern: Conditional Tool Selection
 
-3. **Handle errors gracefully**
-   - Try/catch around all MCP calls
-   - Log errors clearly
-   - Return error status
+```typescript
+// Try primary, fallback to secondary
+let data;
+try {
+  data = await callMCPTool("mcp__primary_api__fetch", params);
+} catch (error) {
+  console.log("Primary failed, trying secondary...");
+  data = await callMCPTool("mcp__secondary_api__fetch", params);
+}
+```
 
-4. **Process data efficiently**
-   - Use parallel calls when possible (Promise.all, asyncio.gather)
-   - Stream large datasets
-   - Aggregate early to reduce memory
+### Pattern: Batch Processing with Progress
 
-5. **Return useful summaries**
-   - Include counts, timestamps
-   - Report errors/warnings
-   - Provide actionable results
+```typescript
+const items = [/* large array */];
+const batchSize = 10;
+let processed = 0;
 
-## Debugging
+for (let i = 0; i < items.length; i += batchSize) {
+  const batch = items.slice(i, i + batchSize);
+  await callMCPToolsParallel(
+    batch.map(item => ({
+      tool: "mcp__database__insert",
+      params: { record: item }
+    }))
+  );
+  processed += batch.length;
+  console.log(`Progress: ${processed}/${items.length}`);
+}
+```
 
-If subagent task fails:
+## Execution Environment
 
-1. **Check MCP configuration**
-   - Is the tool available in subagent's `.mcp.json`?
-   - Is the server running?
+### TypeScript/Deno Requirements
+- Deno runtime installed
+- Permissions: `--allow-read --allow-run --allow-env`
+- Can read from `.claude/skills/mcp-executor/`
+- Can execute system commands via Bash
 
-2. **Verify tool name format**
-   - Correct format: `mcp__server__tool`
-   - Match to actual server name in config
+### Python Requirements
+- Python 3.8 or higher
+- asyncio support
+- Can import from `.claude/skills/mcp-executor/lib/`
+- Can execute system commands
 
-3. **Check MCP_CONFIG_PATH is set**
-   - CRITICAL: Bash execution must set `MCP_CONFIG_PATH=~/.claude/subagent-mcp.json`
-   - Without this, MCP client won't find server configuration
-   - Verify config file exists: `ls -la ~/.claude/subagent-mcp.json`
+### MCP Configuration
+- Your MCP servers are configured in your settings.json
+- Settings loaded automatically by Claude Code
+- No additional environment variables needed (handled by colony)
 
-4. **Check permissions**
-   - Deno needs: `--allow-read --allow-run --allow-env`
-   - MCP servers may have restricted access
+## Troubleshooting
 
-5. **Review generated code**
-   - Did subagent import MCP client correctly?
-   - Are tool names formatted properly?
-   - Is error handling present?
+### Tool Not Found
+**Problem**: `Error: MCP tool not found: mcp__server__tool`
 
-6. **Check execution output**
-   - Look at stdout/stderr from Bash execution
-   - MCP errors appear in output
+**Solutions**:
+- Check that the server is configured in your settings.json
+- Verify the tool name format: `mcp__<server>__<tool>`
+- Test the server manually: `npx -y @modelcontextprotocol/server-<name>`
 
-## Security Considerations
+### Permission Errors
+**Problem**: `Error: Permission denied`
 
-1. **Subagent has code execution** - Review generated code before execution in sensitive contexts
-2. **MCP servers access resources** - Configure MCP with least privilege
-3. **Filesystem access** - Limit allowed paths in MCP server configuration
-4. **Database access** - Use read-only connections where possible
-5. **Network access** - MCP servers can make network requests
+**Solutions**:
+- Ensure Deno has proper permissions: `--allow-read --allow-run --allow-env`
+- Check file system permissions for paths being accessed
+- Verify MCP server has access to required resources
 
-## Documentation References
+### Async/Await Issues (Python)
+**Problem**: `SyntaxError: 'await' outside function`
 
-- **Setup**: See [SUBAGENT_SETUP.md](./SUBAGENT_SETUP.md) for configuration
-- **TypeScript**: See [TYPESCRIPT_GUIDE.md](./TYPESCRIPT_GUIDE.md) for patterns
-- **Python**: See [PYTHON_GUIDE.md](./PYTHON_GUIDE.md) for patterns
-- **Examples**: See [EXAMPLES.md](./EXAMPLES.md) for complete use cases
-- **API Reference**: See [REFERENCE.md](./REFERENCE.md) for MCP client API
+**Solutions**:
+- Ensure code is in an async function
+- Use `asyncio.run()` for top-level execution
+- Check Python version (3.8+ required for async support)
+
+### Import Errors
+**Problem**: `Module not found: mcp-client.ts`
+
+**Solutions**:
+- Use relative path: `./.claude/skills/mcp-executor/lib/mcp-client.ts`
+- For Python: Add to path: `sys.path.insert(0, './.claude/skills/mcp-executor')`
+- Execute from correct working directory
 
 ## Summary
 
-**You are Main Claude Code**. When you encounter a multi-tool MCP workflow:
+As the MCP Executor Agent in the colony:
 
-1. ✅ **Recognize the pattern** - Multiple MCP tools needed, complex logic
-2. ✅ **Launch subagent** - Use Task tool with clear instructions
-3. ✅ **Reference cached scripts** - Point to most similar pattern
-4. ✅ **Specify tools available** - List MCP servers/tools explicitly
-5. ✅ **Define expected output** - What you need back from subagent
-6. ✅ **Receive results** - Subagent executes code and returns summary
-7. ✅ **Report to user** - Present results clearly
+1. **You have MCP servers configured** - No need to load them elsewhere
+2. **Execute code directly** - No subagents, just write and run
+3. **Use the MCP client libraries** - They handle the protocol communication
+4. **Reference script patterns** - Adapt proven patterns for your tasks
+5. **Communicate via messages** - Acknowledge tasks, report progress, return results
+6. **Centralize MCP operations** - Keep other agents lightweight and focused
 
-**Key principle**: You orchestrate, subagent executes. Keep your main context clean, let subagents handle the heavy MCP lifting.
+For colony-specific integration details, see `COLONY-EXECUTOR.md` in this directory.
