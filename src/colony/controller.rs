@@ -123,6 +123,11 @@ impl ColonyController {
         &mut self.agents
     }
 
+    /// Get the colony configuration
+    pub fn config(&self) -> &ColonyConfig {
+        &self.config
+    }
+
     /// Save agent states to disk
     pub fn save_state(&self) -> ColonyResult<()> {
         let state_path = self.colony_root.join("state.json");
