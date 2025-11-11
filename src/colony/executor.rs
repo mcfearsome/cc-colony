@@ -30,7 +30,8 @@ const ERROR_RECOVERY_PY: &str = include_str!("../../.claude/skills/mcp-executor/
 fn extract_skill_files(colony_root: &Path) -> ColonyResult<()> {
     let skill_dir = colony_root.join(".claude/skills/mcp-executor");
 
-    // Create directory structure
+    // Create base directory structure (includes parent dirs)
+    fs::create_dir_all(&skill_dir)?;
     fs::create_dir_all(skill_dir.join("lib"))?;
     fs::create_dir_all(skill_dir.join("templates"))?;
     fs::create_dir_all(skill_dir.join("scripts/typescript"))?;
