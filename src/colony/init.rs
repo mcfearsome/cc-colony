@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::config::ColonyConfig;
 use crate::colony::controller::ColonyController;
 use crate::colony::tasks::queue::TaskQueue;
 use crate::colony::worktree;
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Initialize a new colony configuration

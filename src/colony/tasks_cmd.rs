@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::config::ColonyConfig;
 use crate::colony::controller::ColonyController;
 use crate::colony::tasks::board::{
@@ -9,6 +8,7 @@ use crate::colony::tasks::board::{
 };
 use crate::colony::tasks::queue::TaskQueue;
 use crate::colony::tasks::{Task, TaskPriority, TaskStatus};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Helper function to load task queue (reduces boilerplate)

@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// View logs for an agent

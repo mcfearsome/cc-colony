@@ -186,7 +186,12 @@ fn render_task_list(f: &mut Frame, app: &App, area: Rect) {
             if !tasks.is_empty() {
                 // Add status header
                 items.push(ListItem::new(Line::from(vec![Span::styled(
-                    format!("\n{} {} ({})", status.emoji(), status.display(), tasks.len()),
+                    format!(
+                        "\n{} {} ({})",
+                        status.emoji(),
+                        status.display(),
+                        tasks.len()
+                    ),
                     Style::default()
                         .fg(color)
                         .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
@@ -250,7 +255,10 @@ fn render_messages(f: &mut Frame, app: &App, area: Rect) {
                 Span::raw(" "),
                 Span::styled(to_display, Style::default().fg(Color::Yellow)),
                 Span::raw(": "),
-                Span::styled(truncate(&msg.content, 80), Style::default().fg(Color::White)),
+                Span::styled(
+                    truncate(&msg.content, 80),
+                    Style::default().fg(Color::White),
+                ),
             ]);
 
             ListItem::new(line)

@@ -2,8 +2,8 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::error::ColonyResult;
 use crate::colony::{messaging, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Start all agents in the colony
@@ -178,17 +178,23 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     utils::info("Setting up orchestration TUI...");
 
     // Get the path to the current forge executable
-    let forge_binary = std::env::current_exe()
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to get forge binary path: {}", e)))?;
+    let forge_binary = std::env::current_exe().map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to get forge binary path: {}", e))
+    })?;
     let forge_path = forge_binary.to_str().ok_or_else(|| {
-        crate::error::ColonyError::Colony("Forge binary path contains non-UTF-8 characters".to_string())
+        crate::error::ColonyError::Colony(
+            "Forge binary path contains non-UTF-8 characters".to_string(),
+        )
     })?;
 
     // Get current directory for the TUI to run in
-    let current_dir = std::env::current_dir()
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e)))?;
+    let current_dir = std::env::current_dir().map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e))
+    })?;
     let current_dir_str = current_dir.to_str().ok_or_else(|| {
-        crate::error::ColonyError::Colony("Current directory path contains non-UTF-8 characters".to_string())
+        crate::error::ColonyError::Colony(
+            "Current directory path contains non-UTF-8 characters".to_string(),
+        )
     })?;
 
     let tui_cmd = format!(

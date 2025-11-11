@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{messaging, ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Broadcast a message to all agents

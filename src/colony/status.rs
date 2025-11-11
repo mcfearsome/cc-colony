@@ -1,8 +1,8 @@
 use colored::Colorize;
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{AgentStatus, ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Show status of all agents

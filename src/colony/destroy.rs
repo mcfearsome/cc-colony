@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Destroy the colony and clean up all resources

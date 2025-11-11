@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{tmux, ColonyConfig};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Attach to an existing tmux session

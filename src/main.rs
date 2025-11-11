@@ -195,8 +195,7 @@ async fn run() -> ColonyResult<()> {
         Commands::Attach => colony::attach::run().await,
         Commands::Tui => {
             let config_path = std::path::Path::new("colony.yml");
-            colony::tui::run_tui(config_path)
-                .map_err(|e| crate::error::ColonyError::Colony(e))?;
+            colony::tui::run_tui(config_path).map_err(|e| crate::error::ColonyError::Colony(e))?;
             Ok(())
         }
         Commands::Status => colony::status::run().await,
@@ -222,14 +221,8 @@ async fn run() -> ColonyResult<()> {
                 assigned_to,
                 priority,
             } => {
-                colony::tasks_cmd::create_task(
-                    task_id,
-                    title,
-                    description,
-                    assigned_to,
-                    priority,
-                )
-                .await
+                colony::tasks_cmd::create_task(task_id, title, description, assigned_to, priority)
+                    .await
             }
             TaskCommands::Claim { task_id, agent_id } => {
                 colony::tasks_cmd::claim_task(task_id, agent_id).await
@@ -240,9 +233,7 @@ async fn run() -> ColonyResult<()> {
             TaskCommands::Block { task_id, reason } => {
                 colony::tasks_cmd::block_task(task_id, reason).await
             }
-            TaskCommands::Complete { task_id } => {
-                colony::tasks_cmd::complete_task(task_id).await
-            }
+            TaskCommands::Complete { task_id } => colony::tasks_cmd::complete_task(task_id).await,
             TaskCommands::Unblock { task_id } => colony::tasks_cmd::unblock_task(task_id).await,
             TaskCommands::Cancel { task_id } => colony::tasks_cmd::cancel_task(task_id).await,
             TaskCommands::Delete { task_id } => colony::tasks_cmd::delete_task(task_id).await,

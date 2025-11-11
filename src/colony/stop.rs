@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::error::ColonyResult;
 use crate::colony::{AgentStatus, ColonyConfig, ColonyController};
+use crate::error::ColonyResult;
 use crate::utils;
 
 /// Stop one or all agents

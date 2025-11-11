@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::error::ColonyResult;
 use crate::colony::agent::AgentState;
 use crate::colony::worktree;
 use crate::colony::{Agent, ColonyConfig};
+use crate::error::ColonyResult;
 
 /// Manages a colony of agents
 pub struct ColonyController {
