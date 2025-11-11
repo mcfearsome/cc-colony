@@ -172,6 +172,28 @@ Custom instructions:
 - Support multi-line YAML strings with `|`
 - Perfect for specialized behaviors, checklists, or workflows
 
+## Skills
+
+Colony includes built-in skills to help agents with common tasks:
+
+### Colony Message Skill
+
+The `colony-message` skill provides comprehensive guidance on using the inter-agent messaging system. Agents can invoke it to learn how to:
+- Send messages to specific agents
+- Broadcast to all agents
+- Check for incoming messages
+- Follow messaging best practices
+- Coordinate work with other agents
+
+**Usage:** Agents can refer to `.claude/skills/colony-message.md` or invoke the skill for messaging guidance.
+
+**Example workflows covered:**
+- Announcing work in progress
+- Requesting code reviews
+- Reporting bugs to the team
+- Coordinating on shared resources
+- Getting unblocked
+
 ## Dashboard
 
 A live dashboard script is available at `scripts/colony_dashboard.sh` for real-time monitoring.

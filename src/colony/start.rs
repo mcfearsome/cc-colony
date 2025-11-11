@@ -384,6 +384,9 @@ When you complete something:
 
 Read the full communication guide at:
 `.colony/COLONY_COMMUNICATION.md`
+
+For detailed messaging guidance, see the Colony Message skill:
+`.claude/skills/colony-message.md`
 "#,
         agent.id(),
         agent.config.role,
