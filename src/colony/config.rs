@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -29,6 +30,22 @@ pub struct AgentConfig {
     /// If not specified, agent will work in a Git worktree of the current repo
     #[serde(default)]
     pub directory: Option<String>,
+    /// Optional MCP servers configuration for this agent
+    #[serde(default)]
+    pub mcp_servers: Option<HashMap<String, McpServerConfig>>,
+}
+
+/// Configuration for an MCP server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerConfig {
+    /// Command to execute to start the MCP server
+    pub command: String,
+    /// Optional arguments to pass to the command
+    #[serde(default)]
+    pub args: Option<Vec<String>>,
+    /// Optional environment variables for the MCP server
+    #[serde(default)]
+    pub env: Option<HashMap<String, String>>,
 }
 
 impl AgentConfig {
@@ -49,6 +66,48 @@ impl AgentConfig {
             }
             path
         })
+    }
+
+    /// Generate Claude Code settings.json content with MCP server configuration
+    pub fn generate_settings_json(&self) -> ColonyResult<String> {
+        use serde_json::{json, Value};
+
+        let mut settings = json!({});
+
+        // Add MCP servers if configured
+        if let Some(mcp_servers) = &self.mcp_servers {
+            let mut mcp_config: HashMap<String, Value> = HashMap::new();
+
+            for (name, server_config) in mcp_servers {
+                let mut server = json!({
+                    "command": server_config.command,
+                });
+
+                // Add args if present
+                if let Some(args) = &server_config.args {
+                    server["args"] = json!(args);
+                }
+
+                // Add env if present
+                if let Some(env) = &server_config.env {
+                    server["env"] = json!(env);
+                }
+
+                mcp_config.insert(name.clone(), server);
+            }
+
+            settings["mcpServers"] = json!(mcp_config);
+        }
+
+        let json_str = serde_json::to_string_pretty(&settings)
+            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e)))?;
+
+        Ok(json_str)
+    }
+
+    /// Check if this agent has MCP server configuration
+    pub fn has_mcp_servers(&self) -> bool {
+        self.mcp_servers.as_ref().map_or(false, |s| !s.is_empty())
     }
 }
 
@@ -82,6 +141,7 @@ impl ColonyConfig {
                     focus: "API endpoints and server logic".to_string(),
                     model: "claude-opus-4-20250514".to_string(),
                     directory: None, // Uses Git worktree
+                    mcp_servers: None,
                 },
                 AgentConfig {
                     id: "frontend-1".to_string(),
@@ -89,6 +149,7 @@ impl ColonyConfig {
                     focus: "React components and UI implementation".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
                     directory: None, // Uses Git worktree
+                    mcp_servers: None,
                 },
             ],
         }
@@ -189,6 +250,7 @@ mod tests {
                     focus: "Testing".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
                     directory: None,
+                    mcp_servers: None,
                 },
                 AgentConfig {
                     id: "test".to_string(),
@@ -196,6 +258,7 @@ mod tests {
                     focus: "Testing".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
                     directory: None,
+                    mcp_servers: None,
                 },
             ],
         };
