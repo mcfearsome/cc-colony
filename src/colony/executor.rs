@@ -4,6 +4,65 @@ use crate::colony::config::ExecutorConfig;
 use std::fs;
 use std::path::Path;
 
+// Embed skill files at compile time
+const SKILL_MD: &str = include_str!("../../.claude/skills/mcp-executor/SKILL.md");
+const COLONY_EXECUTOR_MD: &str = include_str!("../../.claude/skills/mcp-executor/COLONY-EXECUTOR.md");
+const MCP_CLIENT_TS: &str = include_str!("../../.claude/skills/mcp-executor/lib/mcp-client.ts");
+const MCP_CLIENT_PY: &str = include_str!("../../.claude/skills/mcp-executor/lib/mcp_client.py");
+
+// Embed templates
+const BASIC_TS_TEMPLATE: &str = include_str!("../../.claude/skills/mcp-executor/templates/basic-typescript.template.ts");
+const BASIC_PY_TEMPLATE: &str = include_str!("../../.claude/skills/mcp-executor/templates/basic-python.template.py");
+const MULTI_TOOL_TS_TEMPLATE: &str = include_str!("../../.claude/skills/mcp-executor/templates/multi-tool.template.ts");
+const MULTI_TOOL_PY_TEMPLATE: &str = include_str!("../../.claude/skills/mcp-executor/templates/multi-tool.template.py");
+
+// Embed TypeScript scripts
+const MULTI_TOOL_WORKFLOW_TS: &str = include_str!("../../.claude/skills/mcp-executor/scripts/typescript/multi-tool-workflow.ts");
+const PARALLEL_EXECUTION_TS: &str = include_str!("../../.claude/skills/mcp-executor/scripts/typescript/parallel-execution.ts");
+const ERROR_RECOVERY_TS: &str = include_str!("../../.claude/skills/mcp-executor/scripts/typescript/error-recovery.ts");
+
+// Embed Python scripts
+const MULTI_TOOL_WORKFLOW_PY: &str = include_str!("../../.claude/skills/mcp-executor/scripts/python/multi_tool_workflow.py");
+const PARALLEL_EXECUTION_PY: &str = include_str!("../../.claude/skills/mcp-executor/scripts/python/parallel_execution.py");
+const ERROR_RECOVERY_PY: &str = include_str!("../../.claude/skills/mcp-executor/scripts/python/error_recovery.py");
+
+/// Extract embedded skill files to the repository .claude/skills directory
+fn extract_skill_files(colony_root: &Path) -> ColonyResult<()> {
+    let skill_dir = colony_root.join(".claude/skills/mcp-executor");
+
+    // Create directory structure
+    fs::create_dir_all(skill_dir.join("lib"))?;
+    fs::create_dir_all(skill_dir.join("templates"))?;
+    fs::create_dir_all(skill_dir.join("scripts/typescript"))?;
+    fs::create_dir_all(skill_dir.join("scripts/python"))?;
+
+    // Write main documentation
+    fs::write(skill_dir.join("SKILL.md"), SKILL_MD)?;
+    fs::write(skill_dir.join("COLONY-EXECUTOR.md"), COLONY_EXECUTOR_MD)?;
+
+    // Write library files
+    fs::write(skill_dir.join("lib/mcp-client.ts"), MCP_CLIENT_TS)?;
+    fs::write(skill_dir.join("lib/mcp_client.py"), MCP_CLIENT_PY)?;
+
+    // Write templates
+    fs::write(skill_dir.join("templates/basic-typescript.template.ts"), BASIC_TS_TEMPLATE)?;
+    fs::write(skill_dir.join("templates/basic-python.template.py"), BASIC_PY_TEMPLATE)?;
+    fs::write(skill_dir.join("templates/multi-tool.template.ts"), MULTI_TOOL_TS_TEMPLATE)?;
+    fs::write(skill_dir.join("templates/multi-tool.template.py"), MULTI_TOOL_PY_TEMPLATE)?;
+
+    // Write TypeScript scripts
+    fs::write(skill_dir.join("scripts/typescript/multi-tool-workflow.ts"), MULTI_TOOL_WORKFLOW_TS)?;
+    fs::write(skill_dir.join("scripts/typescript/parallel-execution.ts"), PARALLEL_EXECUTION_TS)?;
+    fs::write(skill_dir.join("scripts/typescript/error-recovery.ts"), ERROR_RECOVERY_TS)?;
+
+    // Write Python scripts
+    fs::write(skill_dir.join("scripts/python/multi_tool_workflow.py"), MULTI_TOOL_WORKFLOW_PY)?;
+    fs::write(skill_dir.join("scripts/python/parallel_execution.py"), PARALLEL_EXECUTION_PY)?;
+    fs::write(skill_dir.join("scripts/python/error_recovery.py"), ERROR_RECOVERY_PY)?;
+
+    Ok(())
+}
+
 /// Create the executor startup prompt
 pub fn create_executor_startup_prompt(
     executor_id: &str,
@@ -443,6 +502,9 @@ pub fn setup_executor_environment(
     colony_root: &Path,
     executor_config: &ExecutorConfig,
 ) -> ColonyResult<()> {
+    // Extract embedded skill files to .claude/skills/mcp-executor
+    extract_skill_files(colony_root)?;
+
     let project_dir = colony_root
         .join(".colony/projects")
         .join(&executor_config.agent_id);
