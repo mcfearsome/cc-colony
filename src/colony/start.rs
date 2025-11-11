@@ -92,13 +92,14 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         println!("  Focus: {}", agent.config.focus);
         println!("  Model: {}", agent.config.model);
 
-        // Create startup prompt file
-        match create_startup_prompt(agent).await {
-            Ok(()) => {}
+        // Create startup prompt file and capture the prompt text
+        let startup_prompt = match create_startup_prompt(agent).await {
+            Ok(prompt) => Some(prompt),
             Err(e) => {
                 utils::warning(&format!("  Failed to create startup prompt: {}", e));
+                None
             }
-        }
+        };
 
         // Create settings.json file if agent has MCP server configuration
         if agent.config.has_mcp_servers() {
@@ -212,6 +213,23 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 .output();
         }
 
+        // Send startup prompt to the pane if available
+        if let Some(prompt) = startup_prompt {
+            // Wait a moment for Claude to initialize
+            tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+
+            // Send the prompt via tmux send-keys
+            if let Err(e) = send_prompt_to_pane(&session_name, index, &prompt) {
+                utils::warning(&format!(
+                    "  Failed to send startup prompt to agent '{}': {}",
+                    agent.id(),
+                    e
+                ));
+            } else {
+                utils::info(&format!("  Sent startup prompt to agent '{}'", agent.id()));
+            }
+        }
+
         agent.set_status(AgentStatus::Running);
         utils::success(&format!(
             "  Started agent '{}' in pane {}",
@@ -301,10 +319,11 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     Ok(())
 }
 
-/// Create a startup prompt file for an agent
-async fn create_startup_prompt(agent: &crate::colony::Agent) -> ColonyResult<()> {
+/// Create a startup prompt file for an agent and return the prompt text
+async fn create_startup_prompt(agent: &crate::colony::Agent) -> ColonyResult<String> {
     let prompt_path = agent.project_path.join("startup_prompt.txt");
-    let prompt = format!(
+
+    let mut prompt = format!(
         r#"# Welcome to Colony
 
 You are **{}** working as part of a multi-agent colony.
@@ -365,19 +384,26 @@ When you complete something:
 
 Read the full communication guide at:
 `.colony/COLONY_COMMUNICATION.md`
-
-Now get started on your assigned work! Remember to check for messages from your teammates.
 "#,
         agent.id(),
         agent.config.role,
         agent.config.focus
     );
 
+    // Append custom instructions if provided
+    if let Some(instructions) = &agent.config.instructions {
+        prompt.push_str("\n\n---\n\n## Additional Instructions\n\n");
+        prompt.push_str(instructions);
+        prompt.push_str("\n");
+    }
+
+    prompt.push_str("\nNow get started on your assigned work! Remember to check for messages from your teammates.\n");
+
     let mut file = File::create(&prompt_path).await?;
     file.write_all(prompt.as_bytes()).await?;
     file.flush().await?;
 
-    Ok(())
+    Ok(prompt)
 }
 
 /// Create a settings.json file for an agent with MCP server configuration
@@ -497,4 +523,44 @@ fn setup_messaging_infrastructure(controller: &ColonyController) -> ColonyResult
 /// This prevents shell injection by wrapping in single quotes and escaping any single quotes
 fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// Send a prompt to a tmux pane using send-keys
+/// The prompt is sent directly to Claude Code running in the pane
+fn send_prompt_to_pane(session_name: &str, pane_index: usize, prompt: &str) -> ColonyResult<()> {
+    use std::process::Command;
+
+    // Escape the prompt for safe shell usage
+    let escaped_prompt = shell_escape(prompt);
+    let escaped_session = shell_escape(session_name);
+
+    // Use tmux send-keys to send the prompt to the pane
+    // The prompt is sent as literal text (not executed as a command)
+    let send_cmd = format!(
+        "tmux send-keys -t {}:{} -l {}",
+        escaped_session, pane_index, escaped_prompt
+    );
+
+    let output = Command::new("sh").arg("-c").arg(&send_cmd).output()?;
+
+    if !output.status.success() {
+        return Err(crate::error::ColonyError::Colony(format!(
+            "Failed to send prompt to pane: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    // Send Enter key to submit the prompt
+    let enter_cmd = format!("tmux send-keys -t {}:{} Enter", escaped_session, pane_index);
+
+    let output = Command::new("sh").arg("-c").arg(&enter_cmd).output()?;
+
+    if !output.status.success() {
+        return Err(crate::error::ColonyError::Colony(format!(
+            "Failed to send Enter key to pane: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
 }
