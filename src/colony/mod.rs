@@ -13,6 +13,7 @@ pub mod init;
 pub mod logs;
 pub mod messages_cmd;
 pub mod messaging;
+pub mod skills;
 pub mod start;
 pub mod status;
 pub mod stop;
