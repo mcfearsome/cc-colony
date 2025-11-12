@@ -377,6 +377,7 @@ mod tests {
                     instructions: None,
                 },
             ],
+            executor: None,
         };
         assert!(config.validate().is_err());
     }

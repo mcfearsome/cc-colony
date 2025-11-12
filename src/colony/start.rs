@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{executor, messaging, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{executor, messaging, skills, tmux, AgentStatus, ColonyConfig, ColonyController};
 use crate::error::ColonyResult;
 use crate::utils;
 
@@ -41,6 +41,14 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 
     utils::header("Starting Colony");
     utils::info(&format!("Session name: {}", session_name));
+
+    // Install colony-message skill to ~/.claude/skills/ (system-wide)
+    if let Err(e) = skills::install_colony_message_skill() {
+        utils::warning(&format!(
+            "Failed to install colony-message skill: {}. Agents may not have skill documentation.",
+            e
+        ));
+    }
 
     // Create controller
     let mut controller = ColonyController::new(config)?;
