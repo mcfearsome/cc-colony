@@ -31,56 +31,42 @@ pub fn create_worktree(agent_id: &str, base_path: &Path) -> ColonyResult<PathBuf
         std::fs::remove_dir_all(&worktree_path)?;
     }
 
-    // Get current branch name or commit SHA
-    let branch_output = Command::new("git")
+    // Get the current commit SHA (works for both branches and detached HEAD)
+    let sha_output = Command::new("git")
         .arg("rev-parse")
-        .arg("--abbrev-ref")
         .arg("HEAD")
         .output()?;
 
-    if !branch_output.status.success() {
+    if !sha_output.status.success() {
         return Err(crate::error::ColonyError::Colony(format!(
-            "Failed to get current branch: {}",
-            String::from_utf8_lossy(&branch_output.stderr)
+            "Failed to get current commit: {}",
+            String::from_utf8_lossy(&sha_output.stderr)
         )));
     }
 
-    let branch_name = String::from_utf8_lossy(&branch_output.stdout)
+    let commit_sha = String::from_utf8_lossy(&sha_output.stdout)
         .trim()
         .to_string();
 
-    // Handle detached HEAD state
-    let ref_spec = if branch_name == "HEAD" {
-        // In detached HEAD state - use the commit SHA instead
-        let sha_output = Command::new("git").arg("rev-parse").arg("HEAD").output()?;
+    // Create a unique branch name for this worktree to avoid conflicts with existing branches
+    // Format: colony/<agent_id>
+    let new_branch_name = format!("colony/{}", agent_id);
 
-        if !sha_output.status.success() {
-            return Err(crate::error::ColonyError::Colony(format!(
-                "Failed to get current commit: {}",
-                String::from_utf8_lossy(&sha_output.stderr)
-            )));
-        }
+    crate::utils::info(&format!(
+        "Creating worktree with new branch '{}' from commit {}",
+        new_branch_name,
+        &commit_sha[..SHORT_SHA_LENGTH.min(commit_sha.len())]
+    ));
 
-        let commit_sha = String::from_utf8_lossy(&sha_output.stdout)
-            .trim()
-            .to_string();
-
-        crate::utils::warning(&format!(
-            "Currently in detached HEAD state. Creating worktree from commit {}",
-            &commit_sha[..SHORT_SHA_LENGTH.min(commit_sha.len())]
-        ));
-
-        commit_sha
-    } else {
-        branch_name
-    };
-
-    // Create worktree on the current branch or commit
+    // Create worktree with a new branch based on current commit
+    // Using -B flag creates or resets the branch if it already exists
     let output = Command::new("git")
         .arg("worktree")
         .arg("add")
+        .arg("-B")
+        .arg(&new_branch_name)
         .arg(&worktree_path)
-        .arg(&ref_spec)
+        .arg(&commit_sha)
         .output()?;
 
     if !output.status.success() {
