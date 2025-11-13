@@ -63,6 +63,18 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     spinner.finish_and_clear();
     utils::success("Created Git worktrees");
 
+    // Set up executor environment BEFORE messaging (so executor project directory exists)
+    if let Some(executor_config) = &controller.config().executor {
+        if executor_config.enabled {
+            utils::info("Setting up MCP Executor environment...");
+            executor::setup_executor_environment(
+                controller.colony_root(),
+                executor_config,
+            )?;
+            utils::success("MCP Executor environment ready");
+        }
+    }
+
     // Set up messaging infrastructure
     let spinner = utils::spinner("Setting up message queue system...");
     setup_messaging_infrastructure(&controller)?;
@@ -177,8 +189,8 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             )
         };
 
-        // If this is not the first agent, split the window
-        if index > 0 {
+        // Track the actual pane index (tmux assigns these, not us)
+        let pane_idx = if index > 0 {
             // Alternate between vertical and horizontal splits for better layout
             // Odd indices (1, 3, 5...) use vertical splits
             // Even indices (2, 4, 6...) use horizontal splits
@@ -187,18 +199,19 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             const HORIZONTAL_SPLIT_MODULO: usize = 0;
 
             if index % 2 == VERTICAL_SPLIT_MODULO {
-                tmux::split_vertical(&session_name, &claude_cmd)?;
-            } else if index % 2 == HORIZONTAL_SPLIT_MODULO {
-                tmux::split_horizontal(&session_name, &claude_cmd)?;
+                tmux::split_vertical(&session_name, &claude_cmd)?
+            } else {
+                tmux::split_horizontal(&session_name, &claude_cmd)?
             }
         } else {
             // For the first agent (index 0), send the command to the initial pane
             const FIRST_PANE_INDEX: usize = 0;
             tmux::send_command_to_pane(&session_name, FIRST_PANE_INDEX, &claude_cmd)?;
-        }
+            FIRST_PANE_INDEX
+        };
 
-        // Set pane title
-        tmux::set_pane_title(&session_name, index, &format!("Agent: {}", agent.id()))?;
+        // Set pane title using the actual pane index from tmux
+        tmux::set_pane_title(&session_name, pane_idx, &format!("Agent: {}", agent.id()))?;
 
         // Enable output capture for this pane (pipe to log file)
         #[cfg(unix)]
@@ -212,8 +225,8 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             let log_path = shell_escape(log_path_str);
             let escaped_session = shell_escape(&session_name);
             let pipe_cmd = format!(
-                "tmux pipe-pane -t {}:{} 'cat >> {}'",
-                escaped_session, index, log_path
+                "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
+                escaped_session, pane_idx, log_path
             );
             let _ = std::process::Command::new("sh")
                 .arg("-c")
@@ -226,8 +239,8 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             // Wait a moment for Claude to initialize
             tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
 
-            // Send the prompt via tmux send-keys
-            if let Err(e) = send_prompt_to_pane(&session_name, index, &prompt) {
+            // Send the prompt via tmux send-keys using actual pane index
+            if let Err(e) = send_prompt_to_pane(&session_name, pane_idx, &prompt) {
                 utils::warning(&format!(
                     "  Failed to send startup prompt to agent '{}': {}",
                     agent.id(),
@@ -242,7 +255,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         utils::success(&format!(
             "  Started agent '{}' in pane {}",
             agent.id(),
-            index
+            pane_idx
         ));
 
         println!();
@@ -252,18 +265,12 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     let mut executor_pane_index: Option<usize> = None;
     if let Some(executor_config) = &controller.config().executor {
         if executor_config.enabled {
-            utils::info("Setting up MCP Executor pane...");
+            utils::info("Starting MCP Executor pane...");
 
-            // Set up executor environment
-            executor::setup_executor_environment(
-                controller.colony_root(),
-                executor_config,
-            )?;
-
-            // Get the executor project path
+            // Get the executor project path (environment already set up earlier)
             let executor_project_path = controller
                 .colony_root()
-                .join(".colony/projects")
+                .join("projects")
                 .join(&executor_config.agent_id);
 
             let executor_project_str = executor_project_path.to_str().ok_or_else(|| {
@@ -327,16 +334,15 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 )
             };
 
-            // Create the executor pane
-            let executor_pane_idx = agent_count;
-            executor_pane_index = Some(executor_pane_idx);
-
-            if agent_count > 0 {
-                tmux::split_vertical(&session_name, &executor_cmd)?;
+            // Create the executor pane and get actual pane index from tmux
+            let executor_pane_idx = if agent_count > 0 {
+                tmux::split_vertical(&session_name, &executor_cmd)?
             } else {
                 // If no agents (unusual case), send to first pane
                 tmux::send_command_to_pane(&session_name, 0, &executor_cmd)?;
-            }
+                0
+            };
+            executor_pane_index = Some(executor_pane_idx);
 
             tmux::set_pane_title(
                 &session_name,
@@ -349,7 +355,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             {
                 let executor_log_path = controller
                     .colony_root()
-                    .join(".colony/logs")
+                    .join("logs")
                     .join(format!("{}.log", executor_config.agent_id));
                 let log_path_str = executor_log_path.to_str().ok_or_else(|| {
                     crate::error::ColonyError::Colony(
@@ -359,7 +365,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 let log_path = shell_escape(log_path_str);
                 let escaped_session = shell_escape(&session_name);
                 let pipe_cmd = format!(
-                    "tmux pipe-pane -t {}:{} 'cat >> {}'",
+                    "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
                     escaped_session, executor_pane_idx, log_path
                 );
                 let _ = std::process::Command::new("sh")
@@ -431,13 +437,11 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         shell_escape(colony_path)
     );
 
-    // Create a pane for the TUI
+    // Create a pane for the TUI and get actual pane index from tmux
     if agent_count > 0 {
-        tmux::split_vertical(&session_name, &tui_cmd)?;
-        // TUI pane index: agents + executor (if enabled)
-        let tui_pane_index = agent_count + if executor_pane_index.is_some() { 1 } else { 0 };
+        let tui_pane_index = tmux::split_vertical(&session_name, &tui_cmd)?;
         tmux::set_pane_title(&session_name, tui_pane_index, "Orchestration TUI")?;
-        utils::success("  Orchestration TUI pane created");
+        utils::success(&format!("  Orchestration TUI pane created in pane {}", tui_pane_index));
     }
 
     // Apply tiled layout for better view
@@ -720,8 +724,9 @@ fn send_prompt_to_pane(session_name: &str, pane_index: usize, prompt: &str) -> C
 
     // Use tmux send-keys to send the prompt to the pane
     // The prompt is sent as literal text (not executed as a command)
+    // Use window.pane format (default window is 0)
     let send_cmd = format!(
-        "tmux send-keys -t {}:{} -l {}",
+        "tmux send-keys -t {}:0.{} -l {}",
         escaped_session, pane_index, escaped_prompt
     );
 
@@ -735,7 +740,7 @@ fn send_prompt_to_pane(session_name: &str, pane_index: usize, prompt: &str) -> C
     }
 
     // Send Enter key to submit the prompt
-    let enter_cmd = format!("tmux send-keys -t {}:{} Enter", escaped_session, pane_index);
+    let enter_cmd = format!("tmux send-keys -t {}:0.{} Enter", escaped_session, pane_index);
 
     let output = Command::new("sh").arg("-c").arg(&enter_cmd).output()?;
 

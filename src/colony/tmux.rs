@@ -138,12 +138,16 @@ pub fn kill_session(session_name: &str) -> ColonyResult<()> {
 }
 
 /// Split a tmux window horizontally and run a command in the new pane
-pub fn split_horizontal(session_name: &str, command: &str) -> ColonyResult<()> {
+/// Returns the index of the newly created pane
+pub fn split_horizontal(session_name: &str, command: &str) -> ColonyResult<usize> {
     let output = Command::new("tmux")
         .arg("split-window")
         .arg("-h")
         .arg("-t")
         .arg(session_name)
+        .arg("-P")  // Print info about new pane
+        .arg("-F")
+        .arg("#{pane_index}")  // Format: just print the pane index
         .arg(command)
         .output()?;
 
@@ -154,16 +158,29 @@ pub fn split_horizontal(session_name: &str, command: &str) -> ColonyResult<()> {
         )));
     }
 
-    Ok(())
+    // Parse pane index from output
+    let pane_index_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let pane_index = pane_index_str.parse::<usize>().map_err(|_| {
+        crate::error::ColonyError::Colony(format!(
+            "Failed to parse pane index: {}",
+            pane_index_str
+        ))
+    })?;
+
+    Ok(pane_index)
 }
 
 /// Split a tmux window vertically and run a command in the new pane
-pub fn split_vertical(session_name: &str, command: &str) -> ColonyResult<()> {
+/// Returns the index of the newly created pane
+pub fn split_vertical(session_name: &str, command: &str) -> ColonyResult<usize> {
     let output = Command::new("tmux")
         .arg("split-window")
         .arg("-v")
         .arg("-t")
         .arg(session_name)
+        .arg("-P")  // Print info about new pane
+        .arg("-F")
+        .arg("#{pane_index}")  // Format: just print the pane index
         .arg(command)
         .output()?;
 
@@ -174,12 +191,22 @@ pub fn split_vertical(session_name: &str, command: &str) -> ColonyResult<()> {
         )));
     }
 
-    Ok(())
+    // Parse pane index from output
+    let pane_index_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let pane_index = pane_index_str.parse::<usize>().map_err(|_| {
+        crate::error::ColonyError::Colony(format!(
+            "Failed to parse pane index: {}",
+            pane_index_str
+        ))
+    })?;
+
+    Ok(pane_index)
 }
 
 /// Run a command in the first pane of a session
 pub fn send_command_to_pane(session_name: &str, pane: usize, command: &str) -> ColonyResult<()> {
-    let target = format!("{}:{}", session_name, pane);
+    // Use window.pane format (default window is 0)
+    let target = format!("{}:0.{}", session_name, pane);
 
     let output = Command::new("tmux")
         .arg("send-keys")
@@ -237,7 +264,9 @@ pub fn select_tiled_layout(session_name: &str) -> ColonyResult<()> {
 
 /// Set pane title
 pub fn set_pane_title(session_name: &str, pane: usize, title: &str) -> ColonyResult<()> {
-    let target = format!("{}:{}", session_name, pane);
+    // Use window.pane format (default window is 0)
+    // Format: session:window.pane (e.g., colony-gusto-web:0.1 for pane 1 in window 0)
+    let target = format!("{}:0.{}", session_name, pane);
 
     let output = Command::new("tmux")
         .arg("select-pane")

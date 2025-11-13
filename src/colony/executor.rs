@@ -359,7 +359,7 @@ pub fn create_executor_submit_script(
     colony_root: &Path,
     executor_id: &str,
 ) -> ColonyResult<String> {
-    let messages_dir = colony_root.join(".colony/messages");
+    let messages_dir = colony_root.join("messages");
     let script_content = format!(
         r#"#!/usr/bin/env bash
 # MCP Executor Task Submission Script
@@ -507,7 +507,7 @@ pub fn setup_executor_environment(
     extract_skill_files(colony_root)?;
 
     let project_dir = colony_root
-        .join(".colony/projects")
+        .join("projects")
         .join(&executor_config.agent_id);
 
     // Create executor project directory
@@ -525,7 +525,7 @@ pub fn setup_executor_environment(
 
     // Create executor submit helper script (for other agents to use)
     let submit_script = create_executor_submit_script(colony_root, &executor_config.agent_id)?;
-    let submit_script_path = colony_root.join(".colony/executor_submit.sh");
+    let submit_script_path = colony_root.join("executor_submit.sh");
     fs::write(&submit_script_path, submit_script)?;
 
     // Make the submit script executable
