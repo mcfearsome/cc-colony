@@ -31,6 +31,13 @@ pub fn create_worktree(agent_id: &str, base_path: &Path) -> ColonyResult<PathBuf
         std::fs::remove_dir_all(&worktree_path)?;
     }
 
+    // Also prune any stale worktree references from git's tracking
+    // This handles cases where git still thinks a worktree exists but the directory is gone
+    let _ = Command::new("git")
+        .arg("worktree")
+        .arg("prune")
+        .output(); // Ignore errors, it's just cleanup
+
     // Get the current commit SHA (works for both branches and detached HEAD)
     let sha_output = Command::new("git")
         .arg("rev-parse")
