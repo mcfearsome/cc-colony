@@ -48,6 +48,11 @@ pub struct AgentConfig {
     /// This will be added after the standard colony prompt (role, focus, messaging)
     #[serde(default)]
     pub instructions: Option<String>,
+    /// Optional completely custom startup prompt
+    /// If provided, this replaces the entire generated startup prompt
+    /// Use this for complete control over the agent's initial instructions
+    #[serde(default)]
+    pub startup_prompt: Option<String>,
 }
 
 /// Configuration for an MCP server
@@ -244,22 +249,24 @@ impl ColonyConfig {
                     role: "Backend Engineer".to_string(),
                     focus: "API endpoints and server logic".to_string(),
                     model: "claude-opus-4-20250514".to_string(),
-                    directory: None,    // Uses Git worktree
-                    worktree: None,     // Uses agent ID as worktree name
-                    env: None,          // No custom environment variables
+                    directory: None,       // Uses Git worktree
+                    worktree: None,        // Uses agent ID as worktree name
+                    env: None,             // No custom environment variables
                     mcp_servers: None,
-                    instructions: None, // No custom instructions
+                    instructions: None,    // No custom instructions
+                    startup_prompt: None,  // Use default generated prompt
                 },
                 AgentConfig {
                     id: "frontend-1".to_string(),
                     role: "Frontend Engineer".to_string(),
                     focus: "React components and UI implementation".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
-                    directory: None,    // Uses Git worktree
-                    worktree: None,     // Uses agent ID as worktree name
-                    env: None,          // No custom environment variables
+                    directory: None,       // Uses Git worktree
+                    worktree: None,        // Uses agent ID as worktree name
+                    env: None,             // No custom environment variables
                     mcp_servers: None,
-                    instructions: None, // No custom instructions
+                    instructions: None,    // No custom instructions
+                    startup_prompt: None,  // Use default generated prompt
                 },
             ],
         }
@@ -364,6 +371,7 @@ mod tests {
                     env: None,
                     mcp_servers: None,
                     instructions: None,
+                    startup_prompt: None,
                 },
                 AgentConfig {
                     id: "test".to_string(),
@@ -375,6 +383,7 @@ mod tests {
                     env: None,
                     mcp_servers: None,
                     instructions: None,
+                    startup_prompt: None,
                 },
             ],
             executor: None,

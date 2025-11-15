@@ -490,8 +490,13 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 async fn create_startup_prompt(agent: &crate::colony::Agent) -> ColonyResult<String> {
     let prompt_path = agent.project_path.join("startup_prompt.txt");
 
-    let mut prompt = format!(
-        r#"# Welcome to Colony
+    // If a custom startup prompt is provided, use it directly
+    let prompt = if let Some(custom_prompt) = &agent.config.startup_prompt {
+        custom_prompt.clone()
+    } else {
+        // Otherwise, generate the default colony prompt
+        let mut prompt = format!(
+            r#"# Welcome to Colony
 
 You are **{}** working as part of a multi-agent colony.
 
@@ -555,19 +560,21 @@ Read the full communication guide at:
 For detailed messaging guidance, see the Colony Message skill:
 `.claude/skills/colony-message.md`
 "#,
-        agent.id(),
-        agent.config.role,
-        agent.config.focus
-    );
+            agent.id(),
+            agent.config.role,
+            agent.config.focus
+        );
 
-    // Append custom instructions if provided
-    if let Some(instructions) = &agent.config.instructions {
-        prompt.push_str("\n\n---\n\n## Additional Instructions\n\n");
-        prompt.push_str(instructions);
-        prompt.push_str("\n");
-    }
+        // Append custom instructions if provided
+        if let Some(instructions) = &agent.config.instructions {
+            prompt.push_str("\n\n---\n\n## Additional Instructions\n\n");
+            prompt.push_str(instructions);
+            prompt.push_str("\n");
+        }
 
-    prompt.push_str("\nNow get started on your assigned work! Remember to check for messages from your teammates.\n");
+        prompt.push_str("\nNow get started on your assigned work! Remember to check for messages from your teammates.\n");
+        prompt
+    };
 
     let mut file = File::create(&prompt_path).await?;
     file.write_all(prompt.as_bytes()).await?;

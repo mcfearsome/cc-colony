@@ -140,6 +140,42 @@ agents:
 
       Always follow OWASP Top 10 guidelines.
 
+  # Example 9: Agent with completely custom startup prompt
+  - id: specialized-agent
+    role: Specialized Agent
+    focus: Custom workflow
+    model: claude-opus-4-20250514
+    # startup_prompt completely replaces the default colony prompt
+    # Use this when you need full control over the agent's initial instructions
+    startup_prompt: |
+      # Custom Agent Startup
+
+      You are a specialized agent with a unique workflow.
+
+      ## Your Mission
+      Focus exclusively on refactoring legacy code to improve maintainability.
+
+      ## Workflow
+      1. Scan for code smells and anti-patterns
+      2. Prioritize refactoring opportunities by impact
+      3. Create detailed refactoring plans
+      4. Implement changes incrementally
+      5. Ensure all tests pass after each change
+
+      ## Guidelines
+      - Never refactor without tests
+      - Keep commits atomic and well-documented
+      - Preserve existing functionality
+      - Improve code clarity and readability
+
+      ## Communication (Optional)
+      While you have a custom startup, you can still use the colony messaging system:
+      ```bash
+      ./colony_message.sh send all "Starting refactoring on [module]"
+      ```
+
+      Now begin your work!
+
 # Optional: MCP Executor configuration
 # The executor provides a dedicated pane for running complex multi-tool MCP workflows
 # Other agents can send MCP tasks to the executor via colony messages
@@ -205,6 +241,14 @@ executor:
 #    - Use multi-line strings with | for longer instructions
 #    - Perfect for specialized behaviors, focus areas, or workflows
 #    - Example: Security checklist, coding standards, specific testing procedures
+#
+# 6a. Custom Startup Prompt:
+#    - startup_prompt field allows complete replacement of the default colony startup prompt
+#    - When provided, this completely overrides the default prompt (role, focus, messaging system)
+#    - Use this when you need full control over the agent's initial instructions
+#    - You can still include colony messaging commands in your custom prompt if needed
+#    - Note: If both startup_prompt and instructions are provided, only startup_prompt is used
+#    - Example: Specialized agents with unique workflows, non-colony agents, or testing scenarios
 #
 # 7. MCP Server Configuration:
 #    - Each agent can have its own set of MCP servers
