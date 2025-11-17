@@ -78,6 +78,12 @@ enum Commands {
         #[command(subcommand)]
         command: StateCommands,
     },
+
+    /// Manage workflow orchestration
+    Workflow {
+        #[command(subcommand)]
+        command: WorkflowOrchestratorCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -326,6 +332,50 @@ enum MemoryCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum WorkflowOrchestratorCommands {
+    /// List all workflow definitions
+    List,
+
+    /// Show workflow definition details
+    Show {
+        /// Workflow name
+        name: String,
+    },
+
+    /// Run a workflow
+    Run {
+        /// Workflow name
+        name: String,
+
+        /// Input JSON (optional)
+        #[arg(short, long)]
+        input: Option<String>,
+    },
+
+    /// Show workflow run status
+    Status {
+        /// Run ID
+        run_id: String,
+    },
+
+    /// Show workflow run history
+    History {
+        /// Workflow name
+        name: String,
+
+        /// Limit number of results
+        #[arg(short, long)]
+        limit: Option<usize>,
+    },
+
+    /// Cancel a workflow run
+    Cancel {
+        /// Run ID
+        run_id: String,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -438,6 +488,22 @@ async fn run() -> ColonyResult<()> {
             StateCommands::Pull => colony::state_cmd::pull().await,
             StateCommands::Push => colony::state_cmd::push().await,
             StateCommands::Sync => colony::state_cmd::sync().await,
+        },
+        Commands::Workflow { command } => match command {
+            WorkflowOrchestratorCommands::List => colony::workflow_cmd::list_workflows(),
+            WorkflowOrchestratorCommands::Show { name } => colony::workflow_cmd::show_workflow(&name),
+            WorkflowOrchestratorCommands::Run { name, input } => {
+                colony::workflow_cmd::run_workflow(&name, input.as_deref())
+            }
+            WorkflowOrchestratorCommands::Status { run_id } => {
+                colony::workflow_cmd::show_run_status(&run_id)
+            }
+            WorkflowOrchestratorCommands::History { name, limit } => {
+                colony::workflow_cmd::list_run_history(&name, limit)
+            }
+            WorkflowOrchestratorCommands::Cancel { run_id } => {
+                colony::workflow_cmd::cancel_run(&run_id)
+            }
         },
     }
 }
