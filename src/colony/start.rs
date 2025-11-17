@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{executor, messaging, skills, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{executor, messaging, skills, state_integration, tmux, AgentStatus, ColonyConfig, ColonyController};
 use crate::error::ColonyResult;
 use crate::utils;
 
@@ -57,6 +57,14 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Try to load previous state
     let _ = controller.load_state();
 
+    // Initialize shared state system (if configured)
+    if controller.config().shared_state.is_some() {
+        let spinner = utils::spinner("Initializing shared state system...");
+        setup_state_infrastructure(&controller).await?;
+        spinner.finish_and_clear();
+        utils::success("Shared state system ready");
+    }
+
     // Create worktrees
     let spinner = utils::spinner("Creating Git worktrees...");
     controller.create_worktrees()?;
@@ -97,6 +105,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 
     // Clone repository config to avoid borrow checker issues in the loop
     let repo_config = controller.config().repository.clone();
+    let has_shared_state = controller.config().shared_state.is_some();
 
     for (index, agent_id) in agent_ids.iter().enumerate() {
         let agent = controller
@@ -116,7 +125,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         println!("  Model: {}", agent.config.model);
 
         // Create startup prompt file and capture the prompt text
-        let startup_prompt = match create_startup_prompt(agent, repo_config.as_ref()).await {
+        let startup_prompt = match create_startup_prompt(agent, repo_config.as_ref(), has_shared_state).await {
             Ok(prompt) => Some(prompt),
             Err(e) => {
                 utils::warning(&format!("  Failed to create startup prompt: {}", e));
@@ -493,6 +502,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 async fn create_startup_prompt(
     agent: &crate::colony::Agent,
     repo_config: Option<&crate::colony::config::RepositoryConfig>,
+    has_shared_state: bool,
 ) -> ColonyResult<String> {
     let prompt_path = agent.project_path.join("startup_prompt.txt");
 
@@ -517,6 +527,77 @@ async fn create_startup_prompt(
             context
         } else {
             String::new()
+        };
+
+        // Build shared state section if configured
+        let state_section = if has_shared_state {
+            r#"
+
+## Shared State System
+
+You have access to a git-backed shared state system for coordinating work:
+
+### Task Management
+```bash
+# List ready tasks (no blockers)
+./colony_state.sh task ready
+
+# Create a new task
+./colony_state.sh task add "Task description"
+
+# Assign task to yourself
+./colony_state.sh task assign task-abc123
+
+# Update task status
+./colony_state.sh task update task-abc123 in_progress
+
+# Mark task as completed
+./colony_state.sh task update task-abc123 completed
+```
+
+### Workflows
+```bash
+# List all workflows
+./colony_state.sh workflow list
+
+# Create a new workflow
+./colony_state.sh workflow add "Multi-step process"
+```
+
+### Memory & Context
+```bash
+# Store learned information
+./colony_state.sh memory add learned "Important discovery"
+
+# Store contextual info
+./colony_state.sh memory add context "API_URL=https://api.example.com"
+```
+
+### Sync State
+```bash
+# Pull latest state (before starting work)
+./colony_state.sh pull
+
+# Push your changes (after completing work)
+./colony_state.sh push
+
+# Full sync (pull + push)
+./colony_state.sh sync
+```
+
+**Best Practices**:
+- Check for ready tasks before creating new ones
+- Assign tasks to yourself when starting work
+- Update task status as you progress
+- Store important learnings in memory
+- Sync state regularly to coordinate with others
+
+For complete documentation:
+`.colony/STATE_README.md`
+
+"#
+        } else {
+            ""
         };
 
         // Otherwise, generate the default colony prompt
@@ -576,7 +657,7 @@ When you complete something:
 ```bash
 ./colony_message.sh send all "Completed [task description] - ready for integration"
 ```
-
+{}
 ## Coordination
 
 Read the full communication guide at:
@@ -588,7 +669,8 @@ For detailed messaging guidance, see the Colony Message skill:
             agent.id(),
             repo_context,
             agent.config.role,
-            agent.config.focus
+            agent.config.focus,
+            state_section
         );
 
         // Append custom instructions if provided
@@ -734,6 +816,48 @@ fn setup_messaging_infrastructure(controller: &ColonyController) -> ColonyResult
     if let Some(executor_config) = &controller.config().executor {
         if executor_config.enabled {
             messaging::create_message_helper_script(colony_root, &executor_config.agent_id)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Set up shared state infrastructure
+async fn setup_state_infrastructure(controller: &ColonyController) -> ColonyResult<()> {
+    use crate::colony::state::{GitBackedState, SharedStateConfig};
+
+    let colony_root = controller.colony_root();
+    let config = controller.config();
+
+    // Get shared state config (we know it exists from the caller check)
+    let state_config = config.shared_state.as_ref().unwrap();
+
+    // Initialize GitBackedState backend
+    let repo_root = std::env::current_dir()?;
+    let state_backend = GitBackedState::new(state_config.clone(), repo_root)?;
+
+    // Pull latest state if configured
+    if state_config.auto_pull {
+        utils::info("Pulling latest state from remote...");
+        if let Err(e) = state_backend.pull().await {
+            utils::warning(&format!("Failed to pull state: {}. Continuing with local state.", e));
+        } else {
+            utils::success("State synced from remote");
+        }
+    }
+
+    // Create state README
+    state_integration::create_state_readme(colony_root)?;
+
+    // Create helper scripts for each agent
+    for agent in controller.agents().values() {
+        state_integration::create_state_helper_script(colony_root, agent.id())?;
+    }
+
+    // Create helper script for executor if enabled
+    if let Some(executor_config) = &config.executor {
+        if executor_config.enabled {
+            state_integration::create_state_helper_script(colony_root, &executor_config.agent_id)?;
         }
     }
 
