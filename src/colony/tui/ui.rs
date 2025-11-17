@@ -29,6 +29,7 @@ pub fn render(f: &mut Frame, app: &App) {
         Tab::Agents => render_agents(f, app, chunks[1]),
         Tab::Tasks => render_tasks(f, app, chunks[1]),
         Tab::Messages => render_messages(f, app, chunks[1]),
+        Tab::State => render_state(f, app, chunks[1]),
         Tab::Help => render_help(f, chunks[1]),
     }
 
@@ -37,7 +38,7 @@ pub fn render(f: &mut Frame, app: &App) {
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
-    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: Help"];
+    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Help"];
 
     let tabs = Tabs::new(tab_titles)
         .block(
@@ -272,6 +273,164 @@ fn render_messages(f: &mut Frame, app: &App, area: Rect) {
     );
 
     f.render_widget(list, area);
+}
+
+fn render_state(f: &mut Frame, app: &App, area: Rect) {
+    use crate::colony::state::{TaskStatus as StateTaskStatus, WorkflowStatus};
+
+    if !app.data.state_enabled {
+        let text = vec![
+            Line::from(""),
+            Line::from(vec![Span::styled(
+                "Shared State Not Configured",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]),
+            Line::from(""),
+            Line::from("  Shared state is not enabled in colony.yml"),
+            Line::from(""),
+            Line::from("  To enable shared state, add the following to colony.yml:"),
+            Line::from(""),
+            Line::from("  shared_state:"),
+            Line::from("    backend: git-backed"),
+            Line::from("    location: in-repo"),
+            Line::from(""),
+            Line::from("  Then restart colony with 'colony start'"),
+        ];
+
+        let paragraph = Paragraph::new(text)
+            .block(Block::default().borders(Borders::ALL).title("Shared State"))
+            .style(Style::default().fg(Color::White));
+
+        f.render_widget(paragraph, area);
+        return;
+    }
+
+    // Split area into tasks and workflows sections
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(area);
+
+    // Render tasks
+    let task_rows: Vec<Row> = app
+        .data
+        .state_tasks
+        .iter()
+        .map(|task| {
+            let status_style = match task.status {
+                StateTaskStatus::Ready => Style::default().fg(Color::Green),
+                StateTaskStatus::Blocked => Style::default().fg(Color::Red),
+                StateTaskStatus::InProgress => Style::default().fg(Color::Cyan),
+                StateTaskStatus::Completed => Style::default().fg(Color::Blue),
+                StateTaskStatus::Cancelled => Style::default().fg(Color::Gray),
+            };
+
+            let status_icon = match task.status {
+                StateTaskStatus::Ready => "●",
+                StateTaskStatus::Blocked => "◆",
+                StateTaskStatus::InProgress => "◐",
+                StateTaskStatus::Completed => "✓",
+                StateTaskStatus::Cancelled => "✗",
+            };
+
+            let assigned = task.assigned.as_deref().unwrap_or("-");
+            let blockers = if task.blockers.is_empty() {
+                "-".to_string()
+            } else {
+                task.blockers.len().to_string()
+            };
+
+            Row::new(vec![
+                status_icon.to_string(),
+                truncate(&task.id, 12),
+                truncate(&task.title, 35),
+                truncate(assigned, 15),
+                blockers,
+            ])
+            .style(status_style)
+        })
+        .collect();
+
+    let tasks_table = Table::new(
+        task_rows,
+        vec![
+            Constraint::Length(3),  // Status icon
+            Constraint::Length(12), // ID
+            Constraint::Length(35), // Title
+            Constraint::Length(15), // Assigned
+            Constraint::Length(8),  // Blockers
+        ],
+    )
+    .header(
+        Row::new(vec!["", "ID", "Title", "Assigned", "Blocks"])
+            .style(Style::default().add_modifier(Modifier::BOLD))
+            .bottom_margin(1),
+    )
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!("Tasks ({} total)", app.data.state_tasks.len())),
+    );
+
+    f.render_widget(tasks_table, chunks[0]);
+
+    // Render workflows
+    let workflow_rows: Vec<Row> = app
+        .data
+        .state_workflows
+        .iter()
+        .map(|workflow| {
+            let status_style = match workflow.status {
+                WorkflowStatus::Pending => Style::default().fg(Color::Yellow),
+                WorkflowStatus::Running => Style::default().fg(Color::Cyan),
+                WorkflowStatus::Completed => Style::default().fg(Color::Green),
+                WorkflowStatus::Failed => Style::default().fg(Color::Red),
+                WorkflowStatus::Cancelled => Style::default().fg(Color::Gray),
+            };
+
+            let status_icon = match workflow.status {
+                WorkflowStatus::Pending => "○",
+                WorkflowStatus::Running => "◐",
+                WorkflowStatus::Completed => "✓",
+                WorkflowStatus::Failed => "✗",
+                WorkflowStatus::Cancelled => "✗",
+            };
+
+            let step = workflow.current_step.as_deref().unwrap_or("-");
+
+            Row::new(vec![
+                status_icon.to_string(),
+                truncate(&workflow.id, 12),
+                truncate(&workflow.name, 40),
+                truncate(step, 20),
+            ])
+            .style(status_style)
+        })
+        .collect();
+
+    let workflows_table = Table::new(
+        workflow_rows,
+        vec![
+            Constraint::Length(3),  // Status icon
+            Constraint::Length(12), // ID
+            Constraint::Length(40), // Name
+            Constraint::Length(20), // Current step
+        ],
+    )
+    .header(
+        Row::new(vec!["", "ID", "Name", "Current Step"])
+            .style(Style::default().add_modifier(Modifier::BOLD))
+            .bottom_margin(1),
+    )
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!("Workflows ({} total)", app.data.state_workflows.len())),
+    );
+
+    f.render_widget(workflows_table, chunks[1]);
 }
 
 fn render_help(f: &mut Frame, area: Rect) {
