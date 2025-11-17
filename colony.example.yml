@@ -361,4 +361,161 @@ executor:
 #            command: uvx
 #            args: ["mcp-server-sqlite", "--db-path", "/path/to/db.sqlite"]
 #        languages: ["typescript", "python"]
+
+# Optional: Shared State Configuration
+# Git-backed state management enables agents to share tasks, workflows, and memory
+# across sessions using git as the distributed state layer (Beads-inspired)
+shared_state:
+  # Backend type: git-backed or memory-only
+  backend: git-backed  # Options: git-backed, memory (default: git-backed)
+
+  # Storage location: in-repo or external
+  location: in-repo    # Options: in-repo, external (default: in-repo)
+
+  # Path to state directory
+  # - For in-repo: relative to repo root (default: .colony/state)
+  # - For external: absolute path or ~/path
+  path: .colony/state
+
+  # Path to SQLite cache database (relative to repo root)
+  cache: .colony/cache/state.db
+
+  # Git branch to use for state
+  branch: main
+
+  # Auto-commit changes to git
+  auto_commit: true
+
+  # Auto-push commits to remote (only if auto_commit is true)
+  auto_push: false
+
+  # Commit message template ({schema} will be replaced with schema name)
+  commit_message: "Update colony state ({schema}) [skip ci]"
+
+  # Auto-pull on colony start
+  auto_pull: false
+
+  # Sync state when colony starts
+  sync_on_start: true
+
+  # Debounce time in milliseconds before exporting to git
+  debounce_ms: 5000  # 5 seconds
+
+  # State schemas (files to track)
+  schemas:
+    - name: tasks
+      file: tasks.jsonl
+      cache: true
+    - name: workflows
+      file: workflows.jsonl
+      cache: true
+
+# EXAMPLE SHARED STATE CONFIGURATIONS:
+
+# Example 1: In-Repo State (Default)
+# State stored in .colony/state/ within the project repository
+# Best for: Project-specific state, single-repo workflows
+# shared_state:
+#   backend: git-backed
+#   location: in-repo
+#   path: .colony/state
+#   auto_commit: true
+#   auto_push: false
+
+# Example 2: External Shared State
+# State stored in separate git repository, shared across multiple projects
+# Best for: Multi-project coordination, team collaboration
+# shared_state:
+#   backend: git-backed
+#   location: external
+#   path: ~/.colony/shared-state
+#   repository: git@github.com:your-org/colony-state.git
+#   project_id: my-project  # Namespace within external repo
+#   branch: main
+#   auto_commit: true
+#   auto_push: true  # Share state with team
+#   auto_pull: true  # Get latest state on start
+
+# Example 3: Memory-Only State (Testing/Ephemeral)
+# State exists only in memory, not persisted
+# Best for: Testing, temporary colonies, throw-away work
+# shared_state:
+#   backend: memory
+#   # Other fields ignored for memory backend
+
+# Example 4: Custom State Configuration
+# Fine-tuned configuration for specific workflows
+# shared_state:
+#   backend: git-backed
+#   location: in-repo
+#   path: .colony/state
+#   cache: .colony/cache/state.db
+#   branch: colony-state  # Use separate branch for state
+#   auto_commit: true
+#   auto_push: false
+#   commit_message: "State update: {schema}"
+#   sync_on_start: true
+#   debounce_ms: 10000  # 10 seconds (less frequent commits)
+#   schemas:
+#     - name: tasks
+#       file: tasks.jsonl
+#       cache: true
+#     - name: workflows
+#       file: workflows.jsonl
+#       cache: true
+#     - name: memory
+#       file: memory.jsonl
+#       cache: true  # Add memory schema for agent context
+
+# Configuration Notes for Shared State:
+#
+# 1. Backend Types:
+#    - git-backed: State persisted to JSONL files + git (recommended)
+#    - memory: State exists only in RAM (for testing)
+#
+# 2. Storage Locations:
+#    - in-repo: State stored in .colony/state/ within project
+#      * Pros: Simple, project-scoped, no setup
+#      * Cons: State tied to one repo
+#    - external: State in separate git repository
+#      * Pros: Share across projects, team collaboration
+#      * Cons: Requires external repo setup
+#
+# 3. Auto-Commit/Push:
+#    - auto_commit: true → Changes automatically committed to git
+#    - auto_push: true → Commits automatically pushed to remote
+#    - Best practice: Enable auto_commit, disable auto_push for local-only
+#    - For teams: Enable both to share state automatically
+#
+# 4. Debouncing:
+#    - debounce_ms: Delay before writing to git (prevents excessive commits)
+#    - Higher values → Fewer commits, more batching
+#    - Lower values → More real-time sync, more commits
+#    - Recommended: 5000-10000ms (5-10 seconds)
+#
+# 5. Schemas:
+#    - Define which data types to track (tasks, workflows, memory)
+#    - Each schema → separate JSONL file
+#    - cache: true → Enable SQLite cache for fast queries
+#    - Add custom schemas as needed
+#
+# 6. External Repository Setup:
+#    - Create empty git repo: git init --bare ~/colony-state.git
+#    - Or use GitHub: gh repo create your-org/colony-state --private
+#    - Set repository URL in config
+#    - Set project_id to namespace your project's state
+#    - State stored in: {repo}/{project_id}/*.jsonl
+#
+# 7. Git Operations:
+#    - Colony automatically initializes git repo if needed
+#    - Commits use configured message template
+#    - Pull/push operations handle conflicts gracefully
+#    - State files are append-only JSONL (merge-friendly)
+#
+# 8. Use Cases:
+#    - Single developer: in-repo, auto_commit=true, auto_push=false
+#    - Team collaboration: external, auto_commit=true, auto_push=true
+#    - CI/CD pipelines: memory backend (ephemeral)
+#    - Multi-project agents: external with different project_ids
+#
 #
