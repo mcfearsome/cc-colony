@@ -18,6 +18,9 @@ pub struct ColonyConfig {
     /// Optional MCP executor configuration
     #[serde(default)]
     pub executor: Option<ExecutorConfig>,
+    /// Optional shared state configuration
+    #[serde(default)]
+    pub shared_state: Option<crate::colony::state::SharedStateConfig>,
 }
 
 /// Configuration for a single agent
@@ -296,6 +299,7 @@ impl ColonyConfig {
             name: None, // Will default to directory name
             repository: None, // No repository config by default
             executor: None, // Executor disabled by default
+            shared_state: None, // No shared state config by default
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),
@@ -414,6 +418,7 @@ mod tests {
         let config = ColonyConfig {
             name: None,
             repository: None,
+            shared_state: None,
             agents: vec![
                 AgentConfig {
                     id: "test".to_string(),

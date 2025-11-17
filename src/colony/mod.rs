@@ -15,6 +15,7 @@ pub mod messages_cmd;
 pub mod messaging;
 pub mod skills;
 pub mod start;
+pub mod state;
 pub mod status;
 pub mod stop;
 pub mod tasks;
