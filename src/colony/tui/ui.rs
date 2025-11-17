@@ -561,9 +561,9 @@ fn render_help(f: &mut Frame, area: Rect) {
         )]),
         Line::from(""),
         Line::from("  Navigation:"),
-        Line::from("    1-4, Tab       Switch between tabs"),
-        Line::from("    ↑/↓, j/k       Scroll up/down"),
-        Line::from("    PgUp/PgDn      Page up/down"),
+        Line::from("    1-5, Tab       Switch between tabs"),
+        Line::from("    ↑/↓, j/k       Scroll up/down (coming soon)"),
+        Line::from("    PgUp/PgDn      Page up/down (coming soon)"),
         Line::from(""),
         Line::from("  Actions:"),
         Line::from("    r              Refresh data"),
@@ -578,17 +578,62 @@ fn render_help(f: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from(""),
         Line::from(vec![Span::styled(
+            "Tabs Overview",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("  1: Agents      - View running agents and their current tasks"),
+        Line::from("  2: Tasks       - Monitor task queue (pending, in progress, completed)"),
+        Line::from("  3: Messages    - See message flow between agents and colony"),
+        Line::from("  4: State       - Git-backed shared state (tasks, workflows)"),
+        Line::from("  5: Help        - This help screen"),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Metrics Panel",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("  The metrics panel (always visible) shows real-time statistics:"),
+        Line::from("    • Agent counts by status (running, idle, failed)"),
+        Line::from("    • Task counts by status (pending, in progress, completed)"),
+        Line::from("    • Pending message count"),
+        Line::from("    • State tasks and workflows (when shared state enabled)"),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "CLI Commands",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("  Run these commands outside the TUI:"),
+        Line::from("    colony health       - Comprehensive system health diagnostics"),
+        Line::from("    colony state task   - Manage shared state tasks"),
+        Line::from("    colony state workflow - Manage workflows"),
+        Line::from("    colony status       - Quick colony status overview"),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled(
             "About",
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(""),
-        Line::from("  This TUI provides real-time monitoring and interaction with the colony"),
-        Line::from("  orchestration system. Use it to view agent status, track tasks,"),
-        Line::from("  monitor messages, and interact with the colony."),
+        Line::from("  Colony TUI provides real-time monitoring and orchestration for"),
+        Line::from("  multi-agent Claude Code systems. View agent activity, coordinate"),
+        Line::from("  tasks, monitor messages, and track distributed workflows."),
         Line::from(""),
         Line::from("  Data refreshes automatically every 2 seconds. Press 'r' to force refresh."),
+        Line::from(""),
+        Line::from("  Shared state (Tab 4) enables git-backed coordination across sessions."),
+        Line::from("  Configure in colony.yml to enable distributed task management."),
     ];
 
     let paragraph = Paragraph::new(help_text)
