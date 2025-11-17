@@ -69,6 +69,12 @@ enum Commands {
         #[command(subcommand)]
         command: TaskCommands,
     },
+
+    /// Manage shared state (tasks, workflows, memory)
+    State {
+        #[command(subcommand)]
+        command: StateCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -178,6 +184,145 @@ enum TaskCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum StateCommands {
+    /// Task management
+    Task {
+        #[command(subcommand)]
+        command: TaskStateCommands,
+    },
+
+    /// Workflow management
+    Workflow {
+        #[command(subcommand)]
+        command: WorkflowCommands,
+    },
+
+    /// Memory management
+    Memory {
+        #[command(subcommand)]
+        command: MemoryCommands,
+    },
+
+    /// Pull latest state from remote
+    Pull,
+
+    /// Push local state to remote
+    Push,
+
+    /// Full sync (pull + push)
+    Sync,
+}
+
+#[derive(Subcommand)]
+enum TaskStateCommands {
+    /// List all tasks
+    List,
+
+    /// List ready tasks (no blockers)
+    Ready,
+
+    /// Show task details
+    Show {
+        /// Task ID
+        id: String,
+    },
+
+    /// Create a new task
+    Add {
+        /// Task title
+        title: String,
+
+        /// Task description
+        #[arg(short, long)]
+        description: Option<String>,
+
+        /// Blocker task IDs (comma-separated)
+        #[arg(short, long)]
+        blockers: Option<String>,
+    },
+
+    /// Update task status
+    Update {
+        /// Task ID
+        id: String,
+
+        /// New status (ready, blocked, in_progress, completed, cancelled)
+        status: String,
+    },
+
+    /// Assign task to agent
+    Assign {
+        /// Task ID
+        id: String,
+
+        /// Agent ID
+        agent: String,
+    },
+
+    /// Add blocker to task
+    Block {
+        /// Task ID
+        id: String,
+
+        /// Blocker task ID
+        blocker: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkflowCommands {
+    /// List all workflows
+    List,
+
+    /// Show workflow details
+    Show {
+        /// Workflow ID
+        id: String,
+    },
+
+    /// Create a new workflow
+    Add {
+        /// Workflow name
+        name: String,
+    },
+
+    /// Update workflow status
+    Update {
+        /// Workflow ID
+        id: String,
+
+        /// New status (pending, running, completed, failed)
+        status: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum MemoryCommands {
+    /// Add memory entry
+    Add {
+        /// Entry type (context, learned, decision, note)
+        entry_type: String,
+
+        /// Content
+        content: String,
+
+        /// Optional key (for context type)
+        #[arg(short, long)]
+        key: Option<String>,
+
+        /// Optional value (for context type)
+        #[arg(short, long)]
+        value: Option<String>,
+    },
+
+    /// Search memory entries
+    Search {
+        /// Search query
+        query: String,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -243,6 +388,52 @@ async fn run() -> ColonyResult<()> {
             TaskCommands::Claimable { agent_id } => {
                 colony::tasks_cmd::list_claimable_tasks(agent_id).await
             }
+        },
+        Commands::State { command } => match command {
+            StateCommands::Task { command } => match command {
+                TaskStateCommands::List => colony::state_cmd::task_list().await,
+                TaskStateCommands::Ready => colony::state_cmd::task_ready().await,
+                TaskStateCommands::Show { id } => colony::state_cmd::task_show(id).await,
+                TaskStateCommands::Add {
+                    title,
+                    description,
+                    blockers,
+                } => {
+                    let blocker_vec = blockers
+                        .map(|b| b.split(',').map(|s| s.trim().to_string()).collect())
+                        .unwrap_or_else(Vec::new);
+                    colony::state_cmd::task_add(title, description, blocker_vec).await
+                }
+                TaskStateCommands::Update { id, status } => {
+                    colony::state_cmd::task_update(id, status).await
+                }
+                TaskStateCommands::Assign { id, agent } => {
+                    colony::state_cmd::task_assign(id, agent).await
+                }
+                TaskStateCommands::Block { id, blocker } => {
+                    colony::state_cmd::task_block(id, blocker).await
+                }
+            },
+            StateCommands::Workflow { command } => match command {
+                WorkflowCommands::List => colony::state_cmd::workflow_list().await,
+                WorkflowCommands::Show { id } => colony::state_cmd::workflow_show(id).await,
+                WorkflowCommands::Add { name } => colony::state_cmd::workflow_add(name).await,
+                WorkflowCommands::Update { id, status } => {
+                    colony::state_cmd::workflow_update(id, status).await
+                }
+            },
+            StateCommands::Memory { command } => match command {
+                MemoryCommands::Add {
+                    entry_type,
+                    content,
+                    key,
+                    value,
+                } => colony::state_cmd::memory_add(entry_type, content, key, value).await,
+                MemoryCommands::Search { query } => colony::state_cmd::memory_search(query).await,
+            },
+            StateCommands::Pull => colony::state_cmd::pull().await,
+            StateCommands::Push => colony::state_cmd::push().await,
+            StateCommands::Sync => colony::state_cmd::sync().await,
         },
     }
 }
