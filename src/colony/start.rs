@@ -95,6 +95,9 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     let agent_ids: Vec<String> = controller.agents().keys().cloned().collect();
     let agent_count = agent_ids.len();
 
+    // Clone repository config to avoid borrow checker issues in the loop
+    let repo_config = controller.config().repository.clone();
+
     for (index, agent_id) in agent_ids.iter().enumerate() {
         let agent = controller
             .agents_mut()
@@ -113,7 +116,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         println!("  Model: {}", agent.config.model);
 
         // Create startup prompt file and capture the prompt text
-        let startup_prompt = match create_startup_prompt(agent).await {
+        let startup_prompt = match create_startup_prompt(agent, repo_config.as_ref()).await {
             Ok(prompt) => Some(prompt),
             Err(e) => {
                 utils::warning(&format!("  Failed to create startup prompt: {}", e));
@@ -487,19 +490,41 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 }
 
 /// Create a startup prompt file for an agent and return the prompt text
-async fn create_startup_prompt(agent: &crate::colony::Agent) -> ColonyResult<String> {
+async fn create_startup_prompt(
+    agent: &crate::colony::Agent,
+    repo_config: Option<&crate::colony::config::RepositoryConfig>,
+) -> ColonyResult<String> {
     let prompt_path = agent.project_path.join("startup_prompt.txt");
 
     // If a custom startup prompt is provided, use it directly
     let prompt = if let Some(custom_prompt) = &agent.config.startup_prompt {
         custom_prompt.clone()
     } else {
+        // Build repository context section if available
+        let repo_context = if let Some(repo_cfg) = repo_config {
+            let mut context = format!("\n## Repository Context\n\n");
+            context.push_str(&format!("**Type**: {}\n", repo_cfg.repo_type.description()));
+
+            if let Some(purpose) = &repo_cfg.purpose {
+                context.push_str(&format!("**Purpose**: {}\n", purpose));
+            }
+
+            if let Some(ctx) = &repo_cfg.context {
+                context.push_str(&format!("\n{}\n", ctx));
+            }
+
+            context.push_str("\n");
+            context
+        } else {
+            String::new()
+        };
+
         // Otherwise, generate the default colony prompt
         let mut prompt = format!(
             r#"# Welcome to Colony
 
 You are **{}** working as part of a multi-agent colony.
-
+{}
 ## Your Role
 **Role**: {}
 **Focus**: {}
@@ -561,6 +586,7 @@ For detailed messaging guidance, see the Colony Message skill:
 `.claude/skills/colony-message.md`
 "#,
             agent.id(),
+            repo_context,
             agent.config.role,
             agent.config.focus
         );

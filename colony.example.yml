@@ -4,6 +4,51 @@
 # Optional: Name for this colony (defaults to directory name)
 # name: my-project
 
+# Optional: Repository configuration - defines the repository's purpose and role
+# This helps agents understand the type of work they'll be doing
+# repository:
+#   repo_type: source  # source | memory | application | research | documentation
+#   purpose: "Main application codebase for Project Alpha"
+#   context: |
+#     This repository contains the full-stack web application.
+#     Backend: Node.js/Express, Frontend: React, Database: PostgreSQL
+
+# EXAMPLE REPOSITORY CONFIGURATIONS:
+
+# Source Code Repository (default):
+# repository:
+#   repo_type: source
+#   purpose: "E-commerce platform backend and frontend"
+#   context: "Monorepo with microservices architecture"
+
+# Memory/Knowledge Base Repository:
+# repository:
+#   repo_type: memory
+#   purpose: "Team knowledge base and decision records"
+#   context: |
+#     Store research findings, technical decisions (ADRs), meeting notes,
+#     and project documentation. Use markdown files organized by topic.
+
+# Agent Application Repository:
+# repository:
+#   repo_type: application
+#   purpose: "Multi-agent customer support system"
+#   context: |
+#     This repository IS the agent application. Agents provide customer
+#     support through intelligent routing and response generation.
+
+# Research Repository:
+# repository:
+#   repo_type: research
+#   purpose: "Market analysis and competitive intelligence"
+#   context: "Data analysis, report generation, and insight extraction"
+
+# Documentation Repository:
+# repository:
+#   repo_type: documentation
+#   purpose: "Product documentation and user guides"
+#   context: "Technical writing, API documentation, tutorials"
+
 agents:
   # Example 1: Backend agent with filesystem MCP server
   - id: backend-1
@@ -204,6 +249,21 @@ executor:
     - python
 
 # Configuration Notes:
+#
+# 0. Repository Configuration (New!):
+#    - repo_type: Defines the repository's purpose and role
+#      * source: Traditional code repository (default)
+#      * memory: Knowledge base for notes, research, context
+#      * application: Repository IS an agent application
+#      * research: Data analysis and report generation
+#      * documentation: Technical writing and docs
+#    - purpose: Brief description of what the repository is for
+#    - context: Additional information agents should know
+#    - This information is automatically included in agent startup prompts
+#    - Helps agents understand whether they're writing code, organizing knowledge, etc.
+#    - See skills for repo-specific guidance:
+#      * .claude/skills/knowledge-base.md (for memory repos)
+#      * .claude/skills/agent-applications.md (for application repos)
 #
 # 1. Agent ID Requirements:
 #    - Must be unique within the colony
