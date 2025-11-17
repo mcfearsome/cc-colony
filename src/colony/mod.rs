@@ -9,6 +9,7 @@ pub mod config;
 pub mod controller;
 pub mod destroy;
 pub mod executor;
+pub mod health;
 pub mod init;
 pub mod logs;
 pub mod messages_cmd;

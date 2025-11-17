@@ -37,6 +37,9 @@ enum Commands {
     /// Show status of running agents
     Status,
 
+    /// Check colony system health
+    Health,
+
     /// Broadcast a message to all agents
     Broadcast {
         /// Message to broadcast
@@ -344,6 +347,7 @@ async fn run() -> ColonyResult<()> {
             Ok(())
         }
         Commands::Status => colony::status::run().await,
+        Commands::Health => colony::health::run().await,
         Commands::Broadcast { message } => colony::broadcast::run(message).await,
         Commands::Stop { agent_id } => colony::stop::run(agent_id).await,
         Commands::Logs { agent_id } => colony::logs::run(agent_id).await,
