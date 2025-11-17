@@ -104,6 +104,12 @@ enum Commands {
         #[command(subcommand)]
         command: WorkflowOrchestratorCommands,
     },
+
+    /// Manage plugins
+    Plugin {
+        #[command(subcommand)]
+        command: PluginCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -396,6 +402,30 @@ enum WorkflowOrchestratorCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum PluginCommands {
+    /// List all installed plugins
+    List,
+
+    /// Show plugin details
+    Show {
+        /// Plugin name
+        name: String,
+    },
+
+    /// Enable a plugin
+    Enable {
+        /// Plugin name
+        name: String,
+    },
+
+    /// Disable a plugin
+    Disable {
+        /// Plugin name
+        name: String,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -541,6 +571,12 @@ async fn run() -> ColonyResult<()> {
             WorkflowOrchestratorCommands::Cancel { run_id } => {
                 colony::workflow_cmd::cancel_run(&run_id)
             }
+        },
+        Commands::Plugin { command } => match command {
+            PluginCommands::List => colony::plugin_cmd::list_plugins(),
+            PluginCommands::Show { name } => colony::plugin_cmd::show_plugin(&name),
+            PluginCommands::Enable { name } => colony::plugin_cmd::enable_plugin(&name),
+            PluginCommands::Disable { name } => colony::plugin_cmd::disable_plugin(&name),
         },
     }
 }
