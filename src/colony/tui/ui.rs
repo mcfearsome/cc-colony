@@ -16,6 +16,7 @@ pub fn render(f: &mut Frame, app: &App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // Tabs
+            Constraint::Length(3), // Metrics
             Constraint::Min(0),    // Main content
             Constraint::Length(3), // Status bar
         ])
@@ -24,17 +25,20 @@ pub fn render(f: &mut Frame, app: &App) {
     // Render tabs
     render_tabs(f, app, chunks[0]);
 
+    // Render metrics
+    render_metrics(f, app, chunks[1]);
+
     // Render main content based on current tab
     match app.current_tab {
-        Tab::Agents => render_agents(f, app, chunks[1]),
-        Tab::Tasks => render_tasks(f, app, chunks[1]),
-        Tab::Messages => render_messages(f, app, chunks[1]),
-        Tab::State => render_state(f, app, chunks[1]),
-        Tab::Help => render_help(f, chunks[1]),
+        Tab::Agents => render_agents(f, app, chunks[2]),
+        Tab::Tasks => render_tasks(f, app, chunks[2]),
+        Tab::Messages => render_messages(f, app, chunks[2]),
+        Tab::State => render_state(f, app, chunks[2]),
+        Tab::Help => render_help(f, chunks[2]),
     }
 
     // Render status bar
-    render_status_bar(f, app, chunks[2]);
+    render_status_bar(f, app, chunks[3]);
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
@@ -55,6 +59,119 @@ fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
         );
 
     f.render_widget(tabs, area);
+}
+
+fn render_metrics(f: &mut Frame, app: &App, area: Rect) {
+    use crate::colony::state::{TaskStatus as StateTaskStatus, WorkflowStatus};
+
+    // Calculate agent metrics
+    let agents_running = app.data.agents.iter().filter(|a| a.status == AgentStatus::Running).count();
+    let agents_idle = app.data.agents.iter().filter(|a| a.status == AgentStatus::Idle).count();
+    let agents_failed = app.data.agents.iter().filter(|a| a.status == AgentStatus::Failed).count();
+    let agents_total = app.data.agents.len();
+
+    // Calculate task metrics (from tasks tab)
+    let tasks_pending = app.data.tasks.get(&TaskStatus::Pending).map(|v| v.len()).unwrap_or(0);
+    let tasks_in_progress = app.data.tasks.get(&TaskStatus::InProgress).map(|v| v.len()).unwrap_or(0);
+    let tasks_completed = app.data.tasks.get(&TaskStatus::Completed).map(|v| v.len()).unwrap_or(0);
+    let tasks_total = app.data.tasks.values().map(|v| v.len()).sum::<usize>();
+
+    // Calculate message count
+    let messages_count = app.data.messages.len();
+
+    let mut metrics_text = vec![
+        Span::styled("Agents: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("{} ", agents_total), Style::default().fg(Color::White)),
+        Span::styled("(", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{}", agents_running), Style::default().fg(Color::Green)),
+        Span::styled(" run", Style::default().fg(Color::DarkGray)),
+        Span::styled(", ", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{}", agents_idle), Style::default().fg(Color::Gray)),
+        Span::styled(" idle", Style::default().fg(Color::DarkGray)),
+    ];
+
+    if agents_failed > 0 {
+        metrics_text.extend(vec![
+            Span::styled(", ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", agents_failed), Style::default().fg(Color::Red)),
+            Span::styled(" fail", Style::default().fg(Color::DarkGray)),
+        ]);
+    }
+
+    metrics_text.extend(vec![
+        Span::styled(")", Style::default().fg(Color::DarkGray)),
+        Span::raw("  │  "),
+        Span::styled("Tasks: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("{} ", tasks_total), Style::default().fg(Color::White)),
+        Span::styled("(", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{}", tasks_pending), Style::default().fg(Color::Yellow)),
+        Span::styled(" pend", Style::default().fg(Color::DarkGray)),
+        Span::styled(", ", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{}", tasks_in_progress), Style::default().fg(Color::Cyan)),
+        Span::styled(" prog", Style::default().fg(Color::DarkGray)),
+        Span::styled(", ", Style::default().fg(Color::DarkGray)),
+        Span::styled(format!("{}", tasks_completed), Style::default().fg(Color::Green)),
+        Span::styled(" done", Style::default().fg(Color::DarkGray)),
+        Span::styled(")", Style::default().fg(Color::DarkGray)),
+        Span::raw("  │  "),
+        Span::styled("Messages: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("{}", messages_count), Style::default().fg(Color::White)),
+    ]);
+
+    // Add state metrics if enabled
+    if app.data.state_enabled {
+        let state_tasks_ready = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Ready).count();
+        let state_tasks_in_progress = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::InProgress).count();
+        let state_tasks_completed = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Completed).count();
+        let state_tasks_blocked = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Blocked).count();
+        let state_tasks_total = app.data.state_tasks.len();
+
+        let state_workflows_running = app.data.state_workflows.iter().filter(|w| w.status == WorkflowStatus::Running).count();
+        let state_workflows_completed = app.data.state_workflows.iter().filter(|w| w.status == WorkflowStatus::Completed).count();
+        let state_workflows_total = app.data.state_workflows.len();
+
+        metrics_text.extend(vec![
+            Span::raw("  │  "),
+            Span::styled("State Tasks: ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{} ", state_tasks_total), Style::default().fg(Color::White)),
+            Span::styled("(", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", state_tasks_ready), Style::default().fg(Color::Green)),
+            Span::styled(" rdy", Style::default().fg(Color::DarkGray)),
+            Span::styled(", ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", state_tasks_in_progress), Style::default().fg(Color::Cyan)),
+            Span::styled(" prog", Style::default().fg(Color::DarkGray)),
+        ]);
+
+        if state_tasks_blocked > 0 {
+            metrics_text.extend(vec![
+                Span::styled(", ", Style::default().fg(Color::DarkGray)),
+                Span::styled(format!("{}", state_tasks_blocked), Style::default().fg(Color::Red)),
+                Span::styled(" blk", Style::default().fg(Color::DarkGray)),
+            ]);
+        }
+
+        metrics_text.extend(vec![
+            Span::styled(")", Style::default().fg(Color::DarkGray)),
+            Span::raw("  │  "),
+            Span::styled("Workflows: ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{} ", state_workflows_total), Style::default().fg(Color::White)),
+            Span::styled("(", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", state_workflows_running), Style::default().fg(Color::Cyan)),
+            Span::styled(" run", Style::default().fg(Color::DarkGray)),
+            Span::styled(", ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", state_workflows_completed), Style::default().fg(Color::Green)),
+            Span::styled(" done", Style::default().fg(Color::DarkGray)),
+            Span::styled(")", Style::default().fg(Color::DarkGray)),
+        ]);
+    }
+
+    let metrics_line = vec![Line::from(metrics_text)];
+
+    let paragraph = Paragraph::new(metrics_line)
+        .block(Block::default().borders(Borders::ALL).title("Metrics"))
+        .style(Style::default().fg(Color::White));
+
+    f.render_widget(paragraph, area);
 }
 
 fn render_agents(f: &mut Frame, app: &App, area: Rect) {
@@ -497,7 +614,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
         ),
         Span::raw("  |  "),
         Span::styled("Shortcuts: ", Style::default().fg(Color::Gray)),
-        Span::raw("q=Quit  r=Refresh  ?=Help  1-4=Switch Tab"),
+        Span::raw("q=Quit  r=Refresh  ?=Help  1-5=Switch Tab"),
     ])];
 
     let paragraph = Paragraph::new(status_text).block(Block::default().borders(Borders::ALL));
