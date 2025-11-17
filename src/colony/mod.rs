@@ -11,6 +11,7 @@ pub mod destroy;
 pub mod executor;
 pub mod health;
 pub mod init;
+pub mod logging;
 pub mod logs;
 pub mod messages_cmd;
 pub mod messaging;

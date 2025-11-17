@@ -56,6 +56,26 @@ enum Commands {
     Logs {
         /// Agent ID to view logs for (omit to list all)
         agent_id: Option<String>,
+
+        /// Filter by log level (debug, info, warn, error)
+        #[arg(long)]
+        level: Option<String>,
+
+        /// Search for pattern in messages
+        #[arg(long)]
+        pattern: Option<String>,
+
+        /// Show last N lines
+        #[arg(short = 'n', long)]
+        lines: Option<usize>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
     },
 
     /// Destroy the colony and clean up resources
@@ -400,7 +420,24 @@ async fn run() -> ColonyResult<()> {
         Commands::Health => colony::health::run().await,
         Commands::Broadcast { message } => colony::broadcast::run(message).await,
         Commands::Stop { agent_id } => colony::stop::run(agent_id).await,
-        Commands::Logs { agent_id } => colony::logs::run(agent_id).await,
+        Commands::Logs {
+            agent_id,
+            level,
+            pattern,
+            lines,
+            json,
+            no_color,
+        } => {
+            colony::logs::run_with_options(
+                agent_id,
+                level.as_deref(),
+                pattern.as_deref(),
+                lines,
+                json,
+                no_color,
+            )
+            .await
+        }
         Commands::Destroy => colony::destroy::run().await,
         Commands::Messages { command } => match command {
             MessageCommands::List { agent_id } => {
