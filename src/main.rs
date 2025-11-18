@@ -37,6 +37,9 @@ enum Commands {
     /// Show status of running agents
     Status,
 
+    /// Check colony system health
+    Health,
+
     /// Broadcast a message to all agents
     Broadcast {
         /// Message to broadcast
@@ -53,6 +56,26 @@ enum Commands {
     Logs {
         /// Agent ID to view logs for (omit to list all)
         agent_id: Option<String>,
+
+        /// Filter by log level (debug, info, warn, error)
+        #[arg(long)]
+        level: Option<String>,
+
+        /// Search for pattern in messages
+        #[arg(long)]
+        pattern: Option<String>,
+
+        /// Show last N lines
+        #[arg(short = 'n', long)]
+        lines: Option<usize>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
     },
 
     /// Destroy the colony and clean up resources
@@ -68,6 +91,36 @@ enum Commands {
     Tasks {
         #[command(subcommand)]
         command: TaskCommands,
+    },
+
+    /// Manage shared state (tasks, workflows, memory)
+    State {
+        #[command(subcommand)]
+        command: StateCommands,
+    },
+
+    /// Manage workflow orchestration
+    Workflow {
+        #[command(subcommand)]
+        command: WorkflowOrchestratorCommands,
+    },
+
+    /// Manage plugins
+    Plugin {
+        #[command(subcommand)]
+        command: PluginCommands,
+    },
+
+    /// Manage agent templates
+    Template {
+        #[command(subcommand)]
+        command: TemplateCommands,
+    },
+
+    /// View and manage metrics
+    Metrics {
+        #[command(subcommand)]
+        command: MetricsCommands,
     },
 }
 
@@ -178,6 +231,275 @@ enum TaskCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum StateCommands {
+    /// Task management
+    Task {
+        #[command(subcommand)]
+        command: TaskStateCommands,
+    },
+
+    /// Workflow management
+    Workflow {
+        #[command(subcommand)]
+        command: WorkflowCommands,
+    },
+
+    /// Memory management
+    Memory {
+        #[command(subcommand)]
+        command: MemoryCommands,
+    },
+
+    /// Pull latest state from remote
+    Pull,
+
+    /// Push local state to remote
+    Push,
+
+    /// Full sync (pull + push)
+    Sync,
+}
+
+#[derive(Subcommand)]
+enum TaskStateCommands {
+    /// List all tasks
+    List,
+
+    /// List ready tasks (no blockers)
+    Ready,
+
+    /// Show task details
+    Show {
+        /// Task ID
+        id: String,
+    },
+
+    /// Create a new task
+    Add {
+        /// Task title
+        title: String,
+
+        /// Task description
+        #[arg(short, long)]
+        description: Option<String>,
+
+        /// Blocker task IDs (comma-separated)
+        #[arg(short, long)]
+        blockers: Option<String>,
+    },
+
+    /// Update task status
+    Update {
+        /// Task ID
+        id: String,
+
+        /// New status (ready, blocked, in_progress, completed, cancelled)
+        status: String,
+    },
+
+    /// Assign task to agent
+    Assign {
+        /// Task ID
+        id: String,
+
+        /// Agent ID
+        agent: String,
+    },
+
+    /// Add blocker to task
+    Block {
+        /// Task ID
+        id: String,
+
+        /// Blocker task ID
+        blocker: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkflowCommands {
+    /// List all workflows
+    List,
+
+    /// Show workflow details
+    Show {
+        /// Workflow ID
+        id: String,
+    },
+
+    /// Create a new workflow
+    Add {
+        /// Workflow name
+        name: String,
+    },
+
+    /// Update workflow status
+    Update {
+        /// Workflow ID
+        id: String,
+
+        /// New status (pending, running, completed, failed)
+        status: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum MemoryCommands {
+    /// Add memory entry
+    Add {
+        /// Entry type (context, learned, decision, note)
+        entry_type: String,
+
+        /// Content
+        content: String,
+
+        /// Optional key (for context type)
+        #[arg(short, long)]
+        key: Option<String>,
+
+        /// Optional value (for context type)
+        #[arg(short, long)]
+        value: Option<String>,
+    },
+
+    /// Search memory entries
+    Search {
+        /// Search query
+        query: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkflowOrchestratorCommands {
+    /// List all workflow definitions
+    List,
+
+    /// Show workflow definition details
+    Show {
+        /// Workflow name
+        name: String,
+    },
+
+    /// Run a workflow
+    Run {
+        /// Workflow name
+        name: String,
+
+        /// Input JSON (optional)
+        #[arg(short, long)]
+        input: Option<String>,
+    },
+
+    /// Show workflow run status
+    Status {
+        /// Run ID
+        run_id: String,
+    },
+
+    /// Show workflow run history
+    History {
+        /// Workflow name
+        name: String,
+
+        /// Limit number of results
+        #[arg(short, long)]
+        limit: Option<usize>,
+    },
+
+    /// Cancel a workflow run
+    Cancel {
+        /// Run ID
+        run_id: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum PluginCommands {
+    /// List all installed plugins
+    List,
+
+    /// Show plugin details
+    Show {
+        /// Plugin name
+        name: String,
+    },
+
+    /// Enable a plugin
+    Enable {
+        /// Plugin name
+        name: String,
+    },
+
+    /// Disable a plugin
+    Disable {
+        /// Plugin name
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum TemplateCommands {
+    /// List all available templates
+    List,
+
+    /// Show template details
+    Show {
+        /// Template name
+        name: String,
+    },
+
+    /// Install a built-in template
+    Install {
+        /// Template name
+        name: String,
+    },
+
+    /// List built-in templates
+    Builtin,
+}
+
+#[derive(Subcommand)]
+enum MetricsCommands {
+    /// List all registered metrics
+    List,
+
+    /// Show detailed statistics for a metric
+    Show {
+        /// Metric name
+        name: String,
+
+        /// Time period in hours (default: 1)
+        #[arg(long, default_value = "1")]
+        hours: usize,
+    },
+
+    /// Export metrics to JSON
+    Export {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Clear old metrics data
+    Clear {
+        /// Clear all metrics (not just old data)
+        #[arg(long)]
+        all: bool,
+    },
+
+    /// Initialize sample metrics (for testing)
+    Init,
+
+    /// Record a sample metric value (for testing)
+    Record {
+        /// Metric name
+        name: String,
+        /// Value to record
+        value: f64,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -199,9 +521,27 @@ async fn run() -> ColonyResult<()> {
             Ok(())
         }
         Commands::Status => colony::status::run().await,
+        Commands::Health => colony::health::run().await,
         Commands::Broadcast { message } => colony::broadcast::run(message).await,
         Commands::Stop { agent_id } => colony::stop::run(agent_id).await,
-        Commands::Logs { agent_id } => colony::logs::run(agent_id).await,
+        Commands::Logs {
+            agent_id,
+            level,
+            pattern,
+            lines,
+            json,
+            no_color,
+        } => {
+            colony::logs::run_with_options(
+                agent_id,
+                level.as_deref(),
+                pattern.as_deref(),
+                lines,
+                json,
+                no_color,
+            )
+            .await
+        }
         Commands::Destroy => colony::destroy::run().await,
         Commands::Messages { command } => match command {
             MessageCommands::List { agent_id } => {
@@ -242,6 +582,94 @@ async fn run() -> ColonyResult<()> {
             }
             TaskCommands::Claimable { agent_id } => {
                 colony::tasks_cmd::list_claimable_tasks(agent_id).await
+            }
+        },
+        Commands::State { command } => match command {
+            StateCommands::Task { command } => match command {
+                TaskStateCommands::List => colony::state_cmd::task_list().await,
+                TaskStateCommands::Ready => colony::state_cmd::task_ready().await,
+                TaskStateCommands::Show { id } => colony::state_cmd::task_show(id).await,
+                TaskStateCommands::Add {
+                    title,
+                    description,
+                    blockers,
+                } => {
+                    let blocker_vec = blockers
+                        .map(|b| b.split(',').map(|s| s.trim().to_string()).collect())
+                        .unwrap_or_else(Vec::new);
+                    colony::state_cmd::task_add(title, description, blocker_vec).await
+                }
+                TaskStateCommands::Update { id, status } => {
+                    colony::state_cmd::task_update(id, status).await
+                }
+                TaskStateCommands::Assign { id, agent } => {
+                    colony::state_cmd::task_assign(id, agent).await
+                }
+                TaskStateCommands::Block { id, blocker } => {
+                    colony::state_cmd::task_block(id, blocker).await
+                }
+            },
+            StateCommands::Workflow { command } => match command {
+                WorkflowCommands::List => colony::state_cmd::workflow_list().await,
+                WorkflowCommands::Show { id } => colony::state_cmd::workflow_show(id).await,
+                WorkflowCommands::Add { name } => colony::state_cmd::workflow_add(name).await,
+                WorkflowCommands::Update { id, status } => {
+                    colony::state_cmd::workflow_update(id, status).await
+                }
+            },
+            StateCommands::Memory { command } => match command {
+                MemoryCommands::Add {
+                    entry_type,
+                    content,
+                    key,
+                    value,
+                } => colony::state_cmd::memory_add(entry_type, content, key, value).await,
+                MemoryCommands::Search { query } => colony::state_cmd::memory_search(query).await,
+            },
+            StateCommands::Pull => colony::state_cmd::pull().await,
+            StateCommands::Push => colony::state_cmd::push().await,
+            StateCommands::Sync => colony::state_cmd::sync().await,
+        },
+        Commands::Workflow { command } => match command {
+            WorkflowOrchestratorCommands::List => colony::workflow_cmd::list_workflows(),
+            WorkflowOrchestratorCommands::Show { name } => colony::workflow_cmd::show_workflow(&name),
+            WorkflowOrchestratorCommands::Run { name, input } => {
+                colony::workflow_cmd::run_workflow(&name, input.as_deref())
+            }
+            WorkflowOrchestratorCommands::Status { run_id } => {
+                colony::workflow_cmd::show_run_status(&run_id)
+            }
+            WorkflowOrchestratorCommands::History { name, limit } => {
+                colony::workflow_cmd::list_run_history(&name, limit)
+            }
+            WorkflowOrchestratorCommands::Cancel { run_id } => {
+                colony::workflow_cmd::cancel_run(&run_id)
+            }
+        },
+        Commands::Plugin { command } => match command {
+            PluginCommands::List => colony::plugin_cmd::list_plugins(),
+            PluginCommands::Show { name } => colony::plugin_cmd::show_plugin(&name),
+            PluginCommands::Enable { name } => colony::plugin_cmd::enable_plugin(&name),
+            PluginCommands::Disable { name } => colony::plugin_cmd::disable_plugin(&name),
+        },
+        Commands::Template { command } => match command {
+            TemplateCommands::List => colony::template_cmd::list_templates(),
+            TemplateCommands::Show { name } => colony::template_cmd::show_template(&name),
+            TemplateCommands::Install { name } => colony::template_cmd::install_template(&name),
+            TemplateCommands::Builtin => colony::template_cmd::list_builtin(),
+        },
+        Commands::Metrics { command } => match command {
+            MetricsCommands::List => colony::metrics_cmd::list_metrics(),
+            MetricsCommands::Show { name, hours } => {
+                colony::metrics_cmd::show_metric(&name, Some(hours))
+            }
+            MetricsCommands::Export { output } => {
+                colony::metrics_cmd::export_metrics(output.as_deref())
+            }
+            MetricsCommands::Clear { all } => colony::metrics_cmd::clear_metrics(all),
+            MetricsCommands::Init => colony::metrics_cmd::init_sample_metrics(),
+            MetricsCommands::Record { name, value } => {
+                colony::metrics_cmd::record_sample(&name, value)
             }
         },
     }

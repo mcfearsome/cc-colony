@@ -13,6 +13,9 @@ pub struct ColonyData {
     pub agents: Vec<AgentInfo>,
     pub tasks: HashMap<TaskStatus, Vec<Task>>,
     pub messages: Vec<Message>,
+    pub state_tasks: Vec<crate::colony::state::Task>,
+    pub state_workflows: Vec<crate::colony::state::Workflow>,
+    pub state_enabled: bool,
 }
 
 /// Information about an agent
@@ -47,10 +50,16 @@ impl ColonyData {
         // Load messages
         let messages = Self::load_messages(&colony_root)?;
 
+        // Load shared state (if enabled)
+        let (state_tasks, state_workflows, state_enabled) = Self::load_shared_state(&config);
+
         Ok(Self {
             agents,
             tasks,
             messages,
+            state_tasks,
+            state_workflows,
+            state_enabled,
         })
     }
 
@@ -256,5 +265,54 @@ impl ColonyData {
             .unwrap_or(0);
 
         ((completed as f64 / total as f64) * 100.0) as u8
+    }
+
+    /// Load shared state tasks and workflows
+    fn load_shared_state(config: &ColonyConfig) -> (Vec<crate::colony::state::Task>, Vec<crate::colony::state::Workflow>, bool) {
+        // Check if shared state is enabled
+        if config.shared_state.is_none() {
+            return (Vec::new(), Vec::new(), false);
+        }
+
+        let state_dir = PathBuf::from(".colony/state");
+        if !state_dir.exists() {
+            return (Vec::new(), Vec::new(), false);
+        }
+
+        // Load tasks from JSONL
+        let tasks_file = state_dir.join("tasks.jsonl");
+        let tasks = if tasks_file.exists() {
+            Self::load_jsonl_file(&tasks_file).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        // Load workflows from JSONL
+        let workflows_file = state_dir.join("workflows.jsonl");
+        let workflows = if workflows_file.exists() {
+            Self::load_jsonl_file(&workflows_file).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        (tasks, workflows, true)
+    }
+
+    /// Load a JSONL file
+    fn load_jsonl_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>, String> {
+        let content = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+
+        let mut items = Vec::new();
+        for line in content.lines() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let item: T = serde_json::from_str(line)
+                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+            items.push(item);
+        }
+
+        Ok(items)
     }
 }

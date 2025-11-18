@@ -11,10 +11,16 @@ pub struct ColonyConfig {
     /// Optional name for this colony (defaults to directory name)
     #[serde(default)]
     pub name: Option<String>,
+    /// Optional repository configuration defining its purpose and role
+    #[serde(default)]
+    pub repository: Option<RepositoryConfig>,
     pub agents: Vec<AgentConfig>,
     /// Optional MCP executor configuration
     #[serde(default)]
     pub executor: Option<ExecutorConfig>,
+    /// Optional shared state configuration
+    #[serde(default)]
+    pub shared_state: Option<crate::colony::state::SharedStateConfig>,
 }
 
 /// Configuration for a single agent
@@ -48,6 +54,60 @@ pub struct AgentConfig {
     /// This will be added after the standard colony prompt (role, focus, messaging)
     #[serde(default)]
     pub instructions: Option<String>,
+    /// Optional completely custom startup prompt
+    /// If provided, this replaces the entire generated startup prompt
+    /// Use this for complete control over the agent's initial instructions
+    #[serde(default)]
+    pub startup_prompt: Option<String>,
+}
+
+/// Repository type enumeration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RepositoryType {
+    /// Source code repository - traditional software development
+    Source,
+    /// Memory/knowledge base - storing notes, research, context
+    Memory,
+    /// Agent application - repository IS the agent application
+    Application,
+    /// Research workspace - data analysis and report generation
+    Research,
+    /// Documentation repository - technical writing and knowledge bases
+    Documentation,
+}
+
+impl Default for RepositoryType {
+    fn default() -> Self {
+        RepositoryType::Source
+    }
+}
+
+impl RepositoryType {
+    /// Get a human-readable description of this repository type
+    pub fn description(&self) -> &str {
+        match self {
+            RepositoryType::Source => "Source code repository for software development",
+            RepositoryType::Memory => "Knowledge base for storing notes, research, and context",
+            RepositoryType::Application => "Agent application with state, workflows, and logic",
+            RepositoryType::Research => "Research workspace for data analysis and insights",
+            RepositoryType::Documentation => "Documentation repository for technical writing",
+        }
+    }
+}
+
+/// Configuration for repository purpose and role
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepositoryConfig {
+    /// Type of repository (source, memory, application, research, documentation)
+    #[serde(default)]
+    pub repo_type: RepositoryType,
+    /// Optional description of the repository's purpose
+    #[serde(default)]
+    pub purpose: Option<String>,
+    /// Optional context about what agents should know about this repository
+    #[serde(default)]
+    pub context: Option<String>,
 }
 
 /// Configuration for an MCP server
@@ -237,29 +297,33 @@ impl ColonyConfig {
     pub fn default() -> Self {
         ColonyConfig {
             name: None, // Will default to directory name
+            repository: None, // No repository config by default
             executor: None, // Executor disabled by default
+            shared_state: None, // No shared state config by default
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),
                     role: "Backend Engineer".to_string(),
                     focus: "API endpoints and server logic".to_string(),
                     model: "claude-opus-4-20250514".to_string(),
-                    directory: None,    // Uses Git worktree
-                    worktree: None,     // Uses agent ID as worktree name
-                    env: None,          // No custom environment variables
+                    directory: None,       // Uses Git worktree
+                    worktree: None,        // Uses agent ID as worktree name
+                    env: None,             // No custom environment variables
                     mcp_servers: None,
-                    instructions: None, // No custom instructions
+                    instructions: None,    // No custom instructions
+                    startup_prompt: None,  // Use default generated prompt
                 },
                 AgentConfig {
                     id: "frontend-1".to_string(),
                     role: "Frontend Engineer".to_string(),
                     focus: "React components and UI implementation".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
-                    directory: None,    // Uses Git worktree
-                    worktree: None,     // Uses agent ID as worktree name
-                    env: None,          // No custom environment variables
+                    directory: None,       // Uses Git worktree
+                    worktree: None,        // Uses agent ID as worktree name
+                    env: None,             // No custom environment variables
                     mcp_servers: None,
-                    instructions: None, // No custom instructions
+                    instructions: None,    // No custom instructions
+                    startup_prompt: None,  // Use default generated prompt
                 },
             ],
         }
@@ -353,6 +417,8 @@ mod tests {
     fn test_duplicate_ids() {
         let config = ColonyConfig {
             name: None,
+            repository: None,
+            shared_state: None,
             agents: vec![
                 AgentConfig {
                     id: "test".to_string(),
@@ -364,6 +430,7 @@ mod tests {
                     env: None,
                     mcp_servers: None,
                     instructions: None,
+                    startup_prompt: None,
                 },
                 AgentConfig {
                     id: "test".to_string(),
@@ -375,6 +442,7 @@ mod tests {
                     env: None,
                     mcp_servers: None,
                     instructions: None,
+                    startup_prompt: None,
                 },
             ],
             executor: None,

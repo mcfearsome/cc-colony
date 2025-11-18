@@ -4,8 +4,19 @@ Cargo.lock
 **/*.rs.bk
 *.pdb
 
-# Colony runtime
-.colony/
+# Colony runtime - selective ignore
+# Cache directory (derived data, never commit)
+.colony/cache/
+
+# Agent working directories (never commit)
+.colony/projects/
+
+# Git worktrees (never commit)
+.colony/worktrees/
+
+# Keep .colony/state/ tracked - it's the source of truth for git-backed state
+
+# User-specific colony configuration
 colony.yml
 
 # macOS
@@ -20,3 +31,6 @@ colony.yml
 
 # Logs
 *.log
+
+# Documentation build output
+docs/book/

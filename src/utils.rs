@@ -65,7 +65,6 @@ pub fn confirm(prompt: &str) -> bool {
 }
 
 /// Select from a list of options
-#[allow(dead_code)]
 pub fn select(prompt: &str, items: &[String]) -> Option<usize> {
     use dialoguer::Select;
     Select::new()
@@ -73,4 +72,43 @@ pub fn select(prompt: &str, items: &[String]) -> Option<usize> {
         .items(items)
         .interact()
         .ok()
+}
+
+/// Prompt for text input
+pub fn prompt(prompt: &str, default: Option<&str>) -> Option<String> {
+    use dialoguer::Input;
+    let mut input = Input::<String>::new().with_prompt(prompt);
+
+    if let Some(d) = default {
+        input = input.default(d.to_string());
+    }
+
+    input.interact_text().ok()
+}
+
+/// Prompt for number input
+pub fn prompt_number(prompt: &str, default: Option<usize>) -> Option<usize> {
+    use dialoguer::Input;
+    let mut input = Input::<usize>::new().with_prompt(prompt);
+
+    if let Some(d) = default {
+        input = input.default(d);
+    }
+
+    input.interact_text().ok()
+}
+
+/// Multi-select from a list of options
+pub fn multiselect(prompt: &str, items: &[String], defaults: &[bool]) -> Option<Vec<usize>> {
+    use dialoguer::MultiSelect;
+    let mut ms = MultiSelect::new()
+        .with_prompt(prompt)
+        .items(items);
+
+    // Set defaults if provided
+    if !defaults.is_empty() {
+        ms = ms.defaults(defaults);
+    }
+
+    ms.interact().ok()
 }

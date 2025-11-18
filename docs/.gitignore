@@ -1,0 +1,6 @@
+# mdBook generated output
+book/
+
+# Backup files
+*.bak
+*~

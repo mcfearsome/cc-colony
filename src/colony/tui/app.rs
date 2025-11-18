@@ -17,6 +17,7 @@ pub enum Tab {
     Agents,
     Tasks,
     Messages,
+    State,
     Help,
 }
 
@@ -26,7 +27,8 @@ impl Tab {
             Tab::Agents => 0,
             Tab::Tasks => 1,
             Tab::Messages => 2,
-            Tab::Help => 3,
+            Tab::State => 3,
+            Tab::Help => 4,
         }
     }
 
@@ -35,17 +37,18 @@ impl Tab {
             0 => Tab::Agents,
             1 => Tab::Tasks,
             2 => Tab::Messages,
-            3 => Tab::Help,
+            3 => Tab::State,
+            4 => Tab::Help,
             _ => Tab::Agents,
         }
     }
 
     pub fn next(&self) -> Self {
-        Self::from_index((self.index() + 1) % 4)
+        Self::from_index((self.index() + 1) % 5)
     }
 
     pub fn previous(&self) -> Self {
-        Self::from_index((self.index() + 3) % 4)
+        Self::from_index((self.index() + 4) % 5)
     }
 }
 
@@ -94,7 +97,7 @@ impl App {
                 } else if index == usize::MAX - 1 {
                     // Previous tab
                     self.current_tab = self.current_tab.previous();
-                } else if index < 4 {
+                } else if index < 5 {
                     self.current_tab = Tab::from_index(index);
                 }
                 self.scroll_position = 0;
