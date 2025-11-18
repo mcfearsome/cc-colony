@@ -17,6 +17,14 @@
 - [Templates](./concepts/templates.md)
 - [Plugins](./concepts/plugins.md)
 
+# Examples & Tutorials
+
+- [Code Review Workflow](./examples/code-review.md)
+- [Parallel Development](./examples/parallel-dev.md)
+- [Security Auditing](./examples/security-audit.md)
+- [Documentation Team](./examples/docs-team.md)
+- [Testing Pipeline](./examples/testing-pipeline.md)
+
 # CLI Reference
 
 - [Overview](./cli/overview.md)
@@ -30,6 +38,7 @@
 - [colony state](./cli/state.md)
 - [colony logs](./cli/logs.md)
 - [colony tui](./cli/tui.md)
+- [colony metrics](./cli/metrics.md)
 
 # Advanced Topics
 
@@ -37,6 +46,11 @@
 - [Git-Backed State](./advanced/git-state.md)
 - [Custom Templates](./advanced/custom-templates.md)
 - [Plugin Development](./advanced/plugin-development.md)
+
+# Troubleshooting
+
+- [Common Issues](./troubleshooting/common-issues.md)
+- [FAQ](./troubleshooting/faq.md)
 
 # Development
 
