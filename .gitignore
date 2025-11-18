@@ -31,3 +31,6 @@ colony.yml
 
 # Logs
 *.log
+
+# Documentation build output
+docs/book/
