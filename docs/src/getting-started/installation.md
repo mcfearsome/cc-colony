@@ -8,28 +8,45 @@ This guide will help you install Colony on your system.
 - **Rust** (1.70+): Install from [rustup.rs](https://rustup.rs)
 - **tmux** (2.0+): Terminal multiplexer for agent isolation
 - **Git**: For state management
+- **Claude Code**: The AI coding assistant that agents run on
 
 ### Optional
-- **Claude Code**: The AI coding assistant (agents will use this)
 - **MCP Servers**: For extended functionality
 
-## Installing from Source
+## Installing Colony
 
-Currently, Colony must be built from source:
+### Using Cargo (Recommended)
+
+The easiest way to install Colony is via Cargo:
+
+```bash
+cargo install --git https://github.com/mcfearsome/cc-colony.git
+```
+
+The `colony` binary will be installed to `~/.cargo/bin` and available in your PATH.
+
+### Building from Source
+
+Alternatively, you can clone and build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cc-colony.git
+git clone https://github.com/mcfearsome/cc-colony.git
 cd cc-colony
-
-# Build the project
-cargo build --release
 
 # Install to ~/.cargo/bin
 cargo install --path .
 ```
 
-The `colony` binary will be available in your PATH if `~/.cargo/bin` is included.
+## Installing Claude Code
+
+Colony requires Claude Code to run agents. Install it using npm:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Or visit the [Claude Code documentation](https://docs.claude.com/claude-code) for alternative installation methods.
 
 ## Installing tmux
 
@@ -61,6 +78,9 @@ Check that everything is installed correctly:
 # Check Colony version
 colony --version
 
+# Check Claude Code version
+claude --version
+
 # Check tmux version
 tmux -V
 
@@ -90,9 +110,15 @@ This creates a `colony.yml` configuration file in your project directory.
 To update Colony to the latest version:
 
 ```bash
+cargo install --git https://github.com/mcfearsome/cc-colony.git --force
+```
+
+Or if you installed from source:
+
+```bash
 cd cc-colony
 git pull
-cargo install --path .
+cargo install --path . --force
 ```
 
 ## Troubleshooting
