@@ -18,6 +18,8 @@ pub mod messaging;
 pub mod plugin;
 pub mod plugin_cmd;
 pub mod skills;
+pub mod template;
+pub mod template_cmd;
 pub mod start;
 pub mod state;
 pub mod state_cmd;

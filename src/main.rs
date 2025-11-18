@@ -110,6 +110,12 @@ enum Commands {
         #[command(subcommand)]
         command: PluginCommands,
     },
+
+    /// Manage agent templates
+    Template {
+        #[command(subcommand)]
+        command: TemplateCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -426,6 +432,27 @@ enum PluginCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum TemplateCommands {
+    /// List all available templates
+    List,
+
+    /// Show template details
+    Show {
+        /// Template name
+        name: String,
+    },
+
+    /// Install a built-in template
+    Install {
+        /// Template name
+        name: String,
+    },
+
+    /// List built-in templates
+    Builtin,
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -577,6 +604,12 @@ async fn run() -> ColonyResult<()> {
             PluginCommands::Show { name } => colony::plugin_cmd::show_plugin(&name),
             PluginCommands::Enable { name } => colony::plugin_cmd::enable_plugin(&name),
             PluginCommands::Disable { name } => colony::plugin_cmd::disable_plugin(&name),
+        },
+        Commands::Template { command } => match command {
+            TemplateCommands::List => colony::template_cmd::list_templates(),
+            TemplateCommands::Show { name } => colony::template_cmd::show_template(&name),
+            TemplateCommands::Install { name } => colony::template_cmd::install_template(&name),
+            TemplateCommands::Builtin => colony::template_cmd::list_builtin(),
         },
     }
 }
