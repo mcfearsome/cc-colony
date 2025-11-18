@@ -17,10 +17,10 @@ This guide will help you install Colony on your system.
 
 ### Using Cargo (Recommended)
 
-The easiest way to install Colony is via Cargo:
+The easiest way to install Colony is via Cargo from crates.io:
 
 ```bash
-cargo install --git https://github.com/mcfearsome/cc-colony.git
+cargo install cc-colony
 ```
 
 The `colony` binary will be installed to `~/.cargo/bin` and available in your PATH.
@@ -110,7 +110,7 @@ This creates a `colony.yml` configuration file in your project directory.
 To update Colony to the latest version:
 
 ```bash
-cargo install --git https://github.com/mcfearsome/cc-colony.git --force
+cargo install cc-colony --force
 ```
 
 Or if you installed from source:
