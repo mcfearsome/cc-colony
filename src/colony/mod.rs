@@ -15,6 +15,8 @@ pub mod logging;
 pub mod logs;
 pub mod messages_cmd;
 pub mod messaging;
+pub mod metrics;
+pub mod metrics_cmd;
 pub mod plugin;
 pub mod plugin_cmd;
 pub mod skills;

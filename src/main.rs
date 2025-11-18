@@ -116,6 +116,12 @@ enum Commands {
         #[command(subcommand)]
         command: TemplateCommands,
     },
+
+    /// View and manage metrics
+    Metrics {
+        #[command(subcommand)]
+        command: MetricsCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -453,6 +459,47 @@ enum TemplateCommands {
     Builtin,
 }
 
+#[derive(Subcommand)]
+enum MetricsCommands {
+    /// List all registered metrics
+    List,
+
+    /// Show detailed statistics for a metric
+    Show {
+        /// Metric name
+        name: String,
+
+        /// Time period in hours (default: 1)
+        #[arg(long, default_value = "1")]
+        hours: usize,
+    },
+
+    /// Export metrics to JSON
+    Export {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Clear old metrics data
+    Clear {
+        /// Clear all metrics (not just old data)
+        #[arg(long)]
+        all: bool,
+    },
+
+    /// Initialize sample metrics (for testing)
+    Init,
+
+    /// Record a sample metric value (for testing)
+    Record {
+        /// Metric name
+        name: String,
+        /// Value to record
+        value: f64,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -610,6 +657,20 @@ async fn run() -> ColonyResult<()> {
             TemplateCommands::Show { name } => colony::template_cmd::show_template(&name),
             TemplateCommands::Install { name } => colony::template_cmd::install_template(&name),
             TemplateCommands::Builtin => colony::template_cmd::list_builtin(),
+        },
+        Commands::Metrics { command } => match command {
+            MetricsCommands::List => colony::metrics_cmd::list_metrics(),
+            MetricsCommands::Show { name, hours } => {
+                colony::metrics_cmd::show_metric(&name, Some(hours))
+            }
+            MetricsCommands::Export { output } => {
+                colony::metrics_cmd::export_metrics(output.as_deref())
+            }
+            MetricsCommands::Clear { all } => colony::metrics_cmd::clear_metrics(all),
+            MetricsCommands::Init => colony::metrics_cmd::init_sample_metrics(),
+            MetricsCommands::Record { name, value } => {
+                colony::metrics_cmd::record_sample(&name, value)
+            }
         },
     }
 }
