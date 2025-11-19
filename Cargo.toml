@@ -1,6 +1,6 @@
 [package]
 name = "cc-colony"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 authors = ["Colony Team"]
 description = "Multi-agent orchestration for Claude Code with tmux and integrated MCP executor"
