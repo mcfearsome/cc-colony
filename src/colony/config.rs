@@ -5,6 +5,50 @@ use std::path::Path;
 
 use crate::error::ColonyResult;
 
+/// Configuration for telemetry collection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryConfig {
+    /// Whether telemetry is enabled (opt-in, defaults to false)
+    #[serde(default)]
+    pub enabled: bool,
+    /// Anonymous user ID for correlation (generated on first opt-in)
+    #[serde(default)]
+    pub anonymous_id: Option<String>,
+    /// Optional custom telemetry endpoint
+    #[serde(default)]
+    pub endpoint: Option<String>,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            anonymous_id: None,
+            endpoint: None,
+        }
+    }
+}
+
+impl TelemetryConfig {
+    /// Get or generate anonymous ID
+    pub fn get_or_create_anonymous_id(&mut self) -> String {
+        if let Some(id) = &self.anonymous_id {
+            id.clone()
+        } else {
+            let id = uuid::Uuid::new_v4().to_string();
+            self.anonymous_id = Some(id.clone());
+            id
+        }
+    }
+
+    /// Get the telemetry endpoint URL
+    pub fn endpoint_url(&self) -> String {
+        self.endpoint
+            .clone()
+            .unwrap_or_else(|| "https://app.colony.sh/api/telemetry".to_string())
+    }
+}
+
 /// Configuration for a colony of Claude Code agents
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColonyConfig {
@@ -24,6 +68,9 @@ pub struct ColonyConfig {
     /// Authentication configuration
     #[serde(default)]
     pub auth: crate::colony::auth::AuthConfig,
+    /// Telemetry configuration (opt-in)
+    #[serde(default)]
+    pub telemetry: TelemetryConfig,
 }
 
 /// Configuration for a single agent
@@ -304,6 +351,7 @@ impl ColonyConfig {
             executor: None, // Executor disabled by default
             shared_state: None, // No shared state config by default
             auth: Default::default(), // Default auth (API key from env)
+            telemetry: Default::default(), // Telemetry disabled by default (opt-in)
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),
@@ -423,6 +471,8 @@ mod tests {
             name: None,
             repository: None,
             shared_state: None,
+            auth: Default::default(),
+            telemetry: Default::default(),
             agents: vec![
                 AgentConfig {
                     id: "test".to_string(),

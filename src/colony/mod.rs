@@ -34,6 +34,7 @@ pub mod status;
 pub mod stop;
 pub mod tasks;
 pub mod tasks_cmd;
+pub mod telemetry;
 pub mod tmux;
 pub mod tui;
 pub mod ui;
