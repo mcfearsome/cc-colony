@@ -17,6 +17,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - **Per-Agent Environment Variables**: Configure environment variables for each agent
 - **Per-Agent MCP Configuration**: Each agent can have its own MCP server setup
 - **Custom Instructions**: Automatically inject specialized prompts when agents start
+- **Webview Dashboard**: Rich web-based UI in a lightweight native window (optional, `--features webview`)
 
 ## Commands
 
@@ -25,6 +26,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - `colony start` - Start all agents in the colony
 - `colony attach` - Attach to the tmux session
 - `colony tui` - Launch the interactive TUI
+- `colony dashboard` - Launch web dashboard (requires `--features webview`)
 - `colony status` - Show status of running agents
 - `colony broadcast <message>` - Send a message to all agents
 - `colony stop [agent_id]` - Stop one or all agents
