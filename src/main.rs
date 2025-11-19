@@ -37,6 +37,12 @@ enum Commands {
         command: AuthCommands,
     },
 
+    /// Connect to relay service for mobile/web control
+    Relay {
+        #[command(subcommand)]
+        command: RelayCommands,
+    },
+
     /// Interactive TUI for monitoring and controlling the colony
     Tui,
 
@@ -171,6 +177,26 @@ enum AuthCommands {
 
     /// Refresh authentication token
     Refresh,
+}
+
+#[derive(Subcommand)]
+enum RelayCommands {
+    /// Connect to relay service
+    Connect {
+        /// Relay service URL (default: wss://api.colony.sh)
+        #[arg(long)]
+        url: Option<String>,
+
+        /// Authentication token
+        #[arg(long)]
+        token: Option<String>,
+    },
+
+    /// Show relay connection status
+    Status,
+
+    /// Disconnect from relay service
+    Disconnect,
 }
 
 #[derive(clap::ValueEnum, Clone)]
@@ -582,6 +608,11 @@ async fn run() -> ColonyResult<()> {
             AuthCommands::Status => colony::auth_cmd::status().await,
             AuthCommands::Logout => colony::auth_cmd::logout().await,
             AuthCommands::Refresh => colony::auth_cmd::refresh().await,
+        },
+        Commands::Relay { command } => match command {
+            RelayCommands::Connect { url, token } => colony::relay_cmd::connect(url, token).await,
+            RelayCommands::Status => colony::relay_cmd::status().await,
+            RelayCommands::Disconnect => colony::relay_cmd::disconnect().await,
         },
         Commands::Tui => {
             let config_path = std::path::Path::new("colony.yml");
