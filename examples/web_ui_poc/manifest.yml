@@ -1,0 +1,181 @@
+# Manifest.build POC for cc-colony
+# This demonstrates how colony data could be exposed via manifest
+
+name: Colony UI
+port: 1111
+
+entities:
+  # Task management entity
+  - name: Task
+    authenticable: false
+    properties:
+      - name: id
+        type: string
+        validation:
+          required: true
+
+      - name: title
+        type: string
+        validation:
+          required: true
+          minLength: 3
+
+      - name: description
+        type: text
+
+      - name: status
+        type: enum
+        values:
+          - pending
+          - in_progress
+          - blocked
+          - completed
+
+      - name: priority
+        type: enum
+        values:
+          - low
+          - medium
+          - high
+          - critical
+        default: medium
+
+      - name: assigned_to
+        type: string
+        validation:
+          required: true
+
+      - name: blockers
+        type: string[]
+
+      - name: dependencies
+        type: string[]
+
+      - name: created_at
+        type: datetime
+        default: now
+
+      - name: updated_at
+        type: datetime
+        default: now
+
+  # Agent entity
+  - name: Agent
+    authenticable: false
+    properties:
+      - name: id
+        type: string
+        validation:
+          required: true
+
+      - name: role
+        type: string
+        validation:
+          required: true
+
+      - name: focus
+        type: string
+
+      - name: status
+        type: enum
+        values:
+          - running
+          - stopped
+          - error
+        default: stopped
+
+      - name: current_task
+        type: string
+
+      - name: worktree
+        type: string
+
+      - name: model
+        type: enum
+        values:
+          - claude-opus-4-20250514
+          - claude-sonnet-4-20250514
+          - claude-haiku-3-5-20241022
+        default: claude-sonnet-4-20250514
+
+  # Message entity for inter-agent communication
+  - name: Message
+    authenticable: false
+    properties:
+      - name: id
+        type: string
+        validation:
+          required: true
+
+      - name: sender
+        type: string
+        validation:
+          required: true
+
+      - name: recipient
+        type: string
+        help: "Use 'broadcast' for all agents"
+
+      - name: message_type
+        type: enum
+        values:
+          - info
+          - task
+          - question
+          - answer
+          - error
+        default: info
+
+      - name: content
+        type: text
+        validation:
+          required: true
+
+      - name: timestamp
+        type: datetime
+        default: now
+
+  # Colony metrics
+  - name: Metric
+    authenticable: false
+    properties:
+      - name: agent_id
+        type: string
+        validation:
+          required: true
+
+      - name: metric_type
+        type: enum
+        values:
+          - cpu_usage
+          - memory_usage
+          - task_completion
+          - message_count
+
+      - name: value
+        type: number
+        validation:
+          required: true
+
+      - name: timestamp
+        type: datetime
+        default: now
+
+# Custom admin panel configuration
+admin:
+  title: "Colony Control Center"
+  logo: "🐝"
+  theme: dark
+  navigation:
+    - label: Tasks
+      icon: "📋"
+      entity: Task
+    - label: Agents
+      icon: "🤖"
+      entity: Agent
+    - label: Messages
+      icon: "💬"
+      entity: Message
+    - label: Metrics
+      icon: "📊"
+      entity: Metric

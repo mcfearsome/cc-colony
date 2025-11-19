@@ -46,6 +46,10 @@ enum Commands {
     /// Interactive TUI for monitoring and controlling the colony
     Tui,
 
+    /// Launch web dashboard in embedded webview (requires --features webview)
+    #[cfg(feature = "webview")]
+    Dashboard,
+
     /// Show status of running agents
     Status,
 
@@ -617,6 +621,13 @@ async fn run() -> ColonyResult<()> {
         Commands::Tui => {
             let config_path = std::path::Path::new("colony.yml");
             colony::tui::run_tui(config_path).map_err(crate::error::ColonyError::Colony)?;
+            Ok(())
+        }
+        #[cfg(feature = "webview")]
+        Commands::Dashboard => {
+            colony::ui::show_dashboard().map_err(|e| {
+                crate::error::ColonyError::Colony(format!("Failed to launch dashboard: {}", e))
+            })?;
             Ok(())
         }
         Commands::Status => colony::status::run().await,

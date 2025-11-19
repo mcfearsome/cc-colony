@@ -1,6 +1,6 @@
 [package]
 name = "cc-colony"
-version = "1.1.0"
+version = "2.0.0"
 edition = "2021"
 authors = ["Colony Team"]
 description = "Multi-agent orchestration for Claude Code with tmux and integrated MCP executor"
@@ -72,6 +72,14 @@ tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
 futures-util = "0.3"
 url = "2.5"
 uuid = { version = "1.6", features = ["v4"] }
+
+# Webview (optional feature)
+wry = { version = "0.43", optional = true }
+
+[features]
+default = []
+webview = ["wry"]
+
 
 [dev-dependencies]
 tempfile = "3.8"

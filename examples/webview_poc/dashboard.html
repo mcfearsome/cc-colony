@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colony Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .sidebar {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .nav-item:hover {
+            background: #2d2d30;
+        }
+
+        .nav-item.active {
+            background: #094771;
+        }
+
+        .card {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 400;
+            margin-bottom: 15px;
+            color: #4ec9b0;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .task-item {
+            display: grid;
+            grid-template-columns: 40px 1fr auto auto;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #2d2d30;
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+        }
+
+        .task-item.pending { border-left-color: #dcdcaa; }
+        .task-item.in-progress { border-left-color: #4ec9b0; }
+        .task-item.blocked { border-left-color: #f48771; }
+        .task-item.completed { border-left-color: #608b4e; }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+
+        .status-dot.pending { background: #dcdcaa; }
+        .status-dot.in-progress { background: #4ec9b0; }
+        .status-dot.blocked { background: #f48771; }
+        .status-dot.completed { background: #608b4e; }
+
+        .task-title {
+            font-weight: 500;
+        }
+
+        .task-meta {
+            font-size: 12px;
+            color: #858585;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .badge.critical { background: #f48771; color: #1e1e1e; }
+        .badge.high { background: #dcdcaa; color: #1e1e1e; }
+        .badge.medium { background: #569cd6; color: #fff; }
+        .badge.low { background: #608b4e; color: #fff; }
+
+        button {
+            background: #0e639c;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 300;
+            color: #4ec9b0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #858585;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐝 Colony Dashboard</h1>
+            <div>
+                <button onclick="refreshData()">🔄 Refresh</button>
+                <button onclick="createTask()">➕ New Task</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="nav-item active" onclick="showView('overview')">
+                📊 Overview
+            </div>
+            <div class="nav-item" onclick="showView('tasks')">
+                ✅ Tasks
+            </div>
+            <div class="nav-item" onclick="showView('agents')">
+                🤖 Agents
+            </div>
+            <div class="nav-item" onclick="showView('metrics')">
+                📈 Metrics
+            </div>
+        </div>
+
+        <div class="main" id="main-content">
+            <!-- Content will be dynamically loaded -->
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentView = 'overview';
+        let tasks = [];
+        let agents = [];
+
+        // Initialize
+        async function init() {
+            await loadData();
+            showView('overview');
+        }
+
+        async function loadData() {
+            try {
+                // Using custom protocol to load from Rust
+                const tasksResponse = await fetch('colony://tasks');
+                tasks = await tasksResponse.json();
+
+                const agentsResponse = await fetch('colony://agents');
+                agents = await agentsResponse.json();
+
+                console.log('Loaded tasks:', tasks);
+                console.log('Loaded agents:', agents);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Fallback to mock data
+                tasks = [
+                    { id: 'task-1', title: 'Setup Project', status: 'completed', assigned_to: 'backend-1', priority: 'high' },
+                    { id: 'task-2', title: 'Implement Auth', status: 'in-progress', assigned_to: 'backend-1', priority: 'critical' },
+                    { id: 'task-3', title: 'Build UI', status: 'pending', assigned_to: 'frontend-1', priority: 'medium' },
+                ];
+                agents = [
+                    { id: 'backend-1', role: 'Backend Engineer', status: 'running', current_task: 'task-2' },
+                    { id: 'frontend-1', role: 'Frontend Engineer', status: 'idle', current_task: null },
+                ];
+            }
+        }
+
+        function showView(view) {
+            currentView = view;
+
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Render view
+            const main = document.getElementById('main-content');
+
+            if (view === 'overview') {
+                main.innerHTML = renderOverview();
+                renderCharts();
+            } else if (view === 'tasks') {
+                main.innerHTML = renderTasks();
+            } else if (view === 'agents') {
+                main.innerHTML = renderAgents();
+            } else if (view === 'metrics') {
+                main.innerHTML = renderMetrics();
+                renderMetricsCharts();
+            }
+        }
+
+        function renderOverview() {
+            const pending = tasks.filter(t => t.status === 'pending').length;
+            const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+            const completed = tasks.filter(t => t.status === 'completed').length;
+            const blocked = tasks.filter(t => t.status === 'blocked').length;
+
+            return `
+                <div class="card">
+                    <h2>Quick Stats</h2>
+                    <div class="grid-2">
+                        <div class="stat-card">
+                            <div class="stat-value">${tasks.length}</div>
+                            <div class="stat-label">Total Tasks</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${agents.length}</div>
+                            <div class="stat-label">Active Agents</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${inProgress}</div>
+                            <div class="stat-label">In Progress</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${completed}</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Task Distribution</h2>
+                    <div class="chart-container">
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTasks() {
+            return `
+                <div class="card">
+                    <h2>All Tasks</h2>
+                    <div class="task-list">
+                        ${tasks.map(task => `
+                            <div class="task-item ${task.status}">
+                                <div class="status-dot ${task.status}"></div>
+                                <div>
+                                    <div class="task-title">${task.title}</div>
+                                    <div class="task-meta">${task.assigned_to}</div>
+                                </div>
+                                <span class="badge ${task.priority}">${task.priority}</span>
+                                <button onclick="viewTask('${task.id}')">View</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAgents() {
+            return `
+                <div class="card">
+                    <h2>Colony Agents</h2>
+                    <div class="task-list">
+                        ${agents.map(agent => `
+                            <div class="task-item ${agent.status}">
+                                <div class="status-dot ${agent.status}"></div>
+                                <div>
+                                    <div class="task-title">${agent.id}</div>
+                                    <div class="task-meta">${agent.role}</div>
+                                </div>
+                                <span class="badge medium">${agent.status}</span>
+                                <button onclick="viewAgent('${agent.id}')">View</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMetrics() {
+            return `
+                <div class="card">
+                    <h2>CPU Usage</h2>
+                    <div class="chart-container">
+                        <canvas id="cpuChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Task Completion Rate</h2>
+                    <div class="chart-container">
+                        <canvas id="completionChart"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCharts() {
+            const ctx = document.getElementById('taskChart');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'In Progress', 'Completed', 'Blocked'],
+                    datasets: [{
+                        data: [
+                            tasks.filter(t => t.status === 'pending').length,
+                            tasks.filter(t => t.status === 'in-progress').length,
+                            tasks.filter(t => t.status === 'completed').length,
+                            tasks.filter(t => t.status === 'blocked').length,
+                        ],
+                        backgroundColor: ['#dcdcaa', '#4ec9b0', '#608b4e', '#f48771'],
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { labels: { color: '#d4d4d4' } }
+                    }
+                }
+            });
+        }
+
+        function renderMetricsCharts() {
+            // CPU chart
+            const cpuCtx = document.getElementById('cpuChart');
+            new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 10}, (_, i) => i),
+                    datasets: agents.map((agent, idx) => ({
+                        label: agent.id,
+                        data: Array.from({length: 10}, () => Math.random() * 100),
+                        borderColor: ['#4ec9b0', '#569cd6', '#dcdcaa'][idx],
+                        tension: 0.4,
+                    }))
+                },
+                options: {
+                    scales: {
+                        y: { ticks: { color: '#d4d4d4' } },
+                        x: { ticks: { color: '#d4d4d4' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#d4d4d4' } }
+                    }
+                }
+            });
+        }
+
+        function refreshData() {
+            console.log('Refreshing data...');
+            loadData().then(() => showView(currentView));
+        }
+
+        function createTask() {
+            // Send IPC message to Rust
+            if (window.ipc) {
+                window.ipc.postMessage('create_task:new');
+            }
+            alert('Create task dialog would open here');
+        }
+
+        function viewTask(id) {
+            console.log('View task:', id);
+        }
+
+        function viewAgent(id) {
+            console.log('View agent:', id);
+        }
+
+        // Initialize on load
+        init();
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+    </script>
+</body>
+</html>

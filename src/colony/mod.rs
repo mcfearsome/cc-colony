@@ -36,6 +36,7 @@ pub mod tasks;
 pub mod tasks_cmd;
 pub mod tmux;
 pub mod tui;
+pub mod ui;
 pub mod workflow;
 pub mod workflow_cmd;
 pub mod worktree;
