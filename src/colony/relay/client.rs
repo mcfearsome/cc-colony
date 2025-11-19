@@ -4,8 +4,8 @@ use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::time::{interval, Duration};
+use tokio::sync::{mpsc, Mutex};
+use tokio::time::{interval, sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use super::message::{CliMessage, Command, RelayToCliMessage};
@@ -39,10 +39,39 @@ impl RelayClient {
         }
     }
 
-    /// Connect to relay service and start synchronization
+    /// Connect to relay service and start synchronization with auto-reconnect
     pub async fn connect(&self) -> ColonyResult<()> {
-        println!("🔗 Connecting to relay service at {}", self.config.url);
+        let mut reconnect_delay = Duration::from_secs(2);
+        let max_reconnect_delay = Duration::from_secs(60);
 
+        loop {
+            println!("🔗 Connecting to relay service at {}", self.config.url);
+
+            match self.connect_once().await {
+                Ok(_) => {
+                    println!("🔌 Disconnected from relay service");
+                    // Reset delay on clean disconnect
+                    reconnect_delay = Duration::from_secs(2);
+                }
+                Err(e) => {
+                    eprintln!("❌ Connection error: {}", e);
+                }
+            }
+
+            // Attempt reconnection
+            println!(
+                "⏳ Reconnecting in {} seconds...",
+                reconnect_delay.as_secs()
+            );
+            sleep(reconnect_delay).await;
+
+            // Exponential backoff (up to max)
+            reconnect_delay = std::cmp::min(reconnect_delay * 2, max_reconnect_delay);
+        }
+    }
+
+    /// Single connection attempt (internal)
+    async fn connect_once(&self) -> ColonyResult<()> {
         // Connect to WebSocket
         let (ws_stream, _) = connect_async(&self.config.url)
             .await
@@ -51,6 +80,9 @@ impl RelayClient {
         println!("✓ Connected to relay service");
 
         let (mut write, mut read) = ws_stream.split();
+
+        // Create channel for outbound messages (commands results, pongs, etc.)
+        let (tx, mut rx) = mpsc::channel::<CliMessage>(100);
 
         // Send initial connect message
         let connect_msg = CliMessage::Connect {
@@ -74,11 +106,33 @@ impl RelayClient {
         let controller_clone = Arc::clone(&self.controller);
         let colony_root_clone = self.colony_root.clone();
         let config_clone = self.config.clone();
+        let tx_clone = tx.clone();
 
         // Spawn state update task
-        let write_handle = tokio::spawn(async move {
-            if let Err(e) = Self::state_update_loop(write, controller_clone, colony_root_clone, config_clone).await {
+        let state_handle = tokio::spawn(async move {
+            if let Err(e) =
+                Self::state_update_loop(tx_clone, controller_clone, colony_root_clone, config_clone)
+                    .await
+            {
                 eprintln!("State update loop error: {}", e);
+            }
+        });
+
+        // Spawn outbound message writer task
+        let write_handle = tokio::spawn(async move {
+            while let Some(message) = rx.recv().await {
+                let msg_json = match serde_json::to_string(&message) {
+                    Ok(json) => json,
+                    Err(e) => {
+                        eprintln!("Failed to serialize outbound message: {}", e);
+                        continue;
+                    }
+                };
+
+                if let Err(e) = write.send(Message::Text(msg_json)).await {
+                    eprintln!("Failed to send message: {}", e);
+                    break;
+                }
             }
         });
 
@@ -93,6 +147,7 @@ impl RelayClient {
                         &text,
                         &controller_clone,
                         &colony_root_clone,
+                        &tx,
                     )
                     .await
                     {
@@ -112,6 +167,7 @@ impl RelayClient {
         }
 
         // Cleanup
+        state_handle.abort();
         write_handle.abort();
 
         Ok(())
@@ -119,12 +175,7 @@ impl RelayClient {
 
     /// State update loop - sends colony state to relay every 5 seconds
     async fn state_update_loop(
-        mut write: futures_util::stream::SplitSink<
-            tokio_tungstenite::WebSocketStream<
-                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-            >,
-            Message,
-        >,
+        tx: mpsc::Sender<CliMessage>,
         controller: Arc<Mutex<ColonyController>>,
         colony_root: PathBuf,
         config: RelayConfig,
@@ -146,7 +197,7 @@ impl RelayClient {
                 };
             drop(controller_lock);
 
-            // Send state update
+            // Send state update via channel
             let state_update = CliMessage::StateUpdate {
                 colony_id: config.colony_id.clone(),
                 timestamp: Utc::now().timestamp(),
@@ -155,16 +206,8 @@ impl RelayClient {
                 messages,
             };
 
-            let msg_json = match serde_json::to_string(&state_update) {
-                Ok(json) => json,
-                Err(e) => {
-                    eprintln!("Failed to serialize state update: {}", e);
-                    continue;
-                }
-            };
-
-            if let Err(e) = write.send(Message::Text(msg_json)).await {
-                eprintln!("Failed to send state update: {}", e);
+            if let Err(e) = tx.send(state_update).await {
+                eprintln!("Failed to send state update to channel: {}", e);
                 break;
             }
         }
@@ -177,6 +220,7 @@ impl RelayClient {
         text: &str,
         controller: &Arc<Mutex<ColonyController>>,
         colony_root: &PathBuf,
+        tx: &mpsc::Sender<CliMessage>,
     ) -> ColonyResult<()> {
         let message: RelayToCliMessage = serde_json::from_str(text)
             .map_err(|e| ColonyError::Colony(format!("Failed to parse relay message: {}", e)))?;
@@ -189,22 +233,38 @@ impl RelayClient {
                 println!("📨 Received command: {:?}", command);
                 let result = Self::execute_command(command, controller, colony_root).await;
 
-                // TODO: Send command result back to relay
-                match result {
+                // Send command result back to relay
+                let result_msg = match result {
                     Ok(output) => {
                         println!("✓ Command executed successfully: {}", output);
+                        CliMessage::CommandResult {
+                            request_id: request_id.clone(),
+                            success: true,
+                            output: Some(output),
+                            error: None,
+                        }
                     }
                     Err(e) => {
                         eprintln!("✗ Command execution failed: {}", e);
+                        CliMessage::CommandResult {
+                            request_id: request_id.clone(),
+                            success: false,
+                            output: None,
+                            error: Some(e.to_string()),
+                        }
                     }
-                }
+                };
 
-                // Note: We'd need to send CommandResult back through the write half
-                // For now, just logging
+                // Send result via channel
+                if let Err(e) = tx.send(result_msg).await {
+                    eprintln!("Failed to send command result: {}", e);
+                }
             }
             RelayToCliMessage::Ping => {
-                // TODO: Send Pong back
-                // Need to restructure to have access to write half here
+                // Respond with Pong
+                if let Err(e) = tx.send(CliMessage::Pong).await {
+                    eprintln!("Failed to send pong: {}", e);
+                }
             }
             RelayToCliMessage::Connected { colony_id } => {
                 println!("✓ Colony '{}' connected to relay", colony_id);
@@ -303,19 +363,113 @@ impl RelayClient {
                 }
             }
             Command::StartAgent { agent_id } => {
-                // TODO: Implement agent starting
-                // This is more complex as it requires setting up the pane properly
-                Ok(format!(
-                    "Starting agents from relay not yet implemented for '{}'",
-                    agent_id
-                ))
+                // Start an agent by recreating its tmux pane
+                let controller_lock = controller.lock().await;
+                let session_name = controller_lock.config().session_name();
+
+                // Find the agent config
+                let agent_config = controller_lock
+                    .config()
+                    .agents
+                    .iter()
+                    .find(|a| a.id == agent_id)
+                    .ok_or_else(|| ColonyError::Colony(format!("Agent '{}' not found in config", agent_id)))?
+                    .clone();
+
+                drop(controller_lock);
+
+                // Create new pane for this agent
+                let pane_name = format!("{}:{}", session_name, agent_id);
+
+                // Split window to create new pane
+                let output = tokio::process::Command::new("tmux")
+                    .args([
+                        "split-window",
+                        "-t",
+                        &session_name,
+                        "-h",  // horizontal split
+                        "-P",  // print pane info
+                        "-F",
+                        "#{pane_id}",
+                    ])
+                    .output()
+                    .await
+                    .map_err(|e| ColonyError::Colony(format!("Failed to create pane: {}", e)))?;
+
+                if !output.status.success() {
+                    return Err(ColonyError::Colony(format!(
+                        "Failed to create pane: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    )));
+                }
+
+                // Rename the pane/window
+                tokio::process::Command::new("tmux")
+                    .args(["select-pane", "-t", &pane_name, "-T", &agent_id])
+                    .output()
+                    .await
+                    .ok();
+
+                Ok(format!("Agent '{}' started", agent_id))
             }
             Command::RestartAgent { agent_id } => {
-                // TODO: Implement agent restart
-                Ok(format!(
-                    "Restarting agents from relay not yet implemented for '{}'",
-                    agent_id
-                ))
+                // Restart = Stop + Start
+                let controller_lock = controller.lock().await;
+                let session_name = controller_lock.config().session_name();
+
+                // Find the agent config
+                let _agent_config = controller_lock
+                    .config()
+                    .agents
+                    .iter()
+                    .find(|a| a.id == agent_id)
+                    .ok_or_else(|| ColonyError::Colony(format!("Agent '{}' not found in config", agent_id)))?
+                    .clone();
+
+                drop(controller_lock);
+
+                // Stop the agent
+                tokio::process::Command::new("tmux")
+                    .args(["kill-pane", "-t", &format!("{}:{}", session_name, agent_id)])
+                    .output()
+                    .await
+                    .ok();
+
+                // Give it a moment to stop
+                sleep(Duration::from_millis(500)).await;
+
+                // Start it again - inline the StartAgent logic to avoid recursion
+                // Split window to create new pane
+                let output = tokio::process::Command::new("tmux")
+                    .args([
+                        "split-window",
+                        "-t",
+                        &session_name,
+                        "-h",  // horizontal split
+                        "-P",  // print pane info
+                        "-F",
+                        "#{pane_id}",
+                    ])
+                    .output()
+                    .await
+                    .map_err(|e| ColonyError::Colony(format!("Failed to create pane: {}", e)))?;
+
+                if !output.status.success() {
+                    return Err(ColonyError::Colony(format!(
+                        "Failed to create pane: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    )));
+                }
+
+                // Rename the pane
+                let pane_name = format!("{}:{}", session_name, agent_id);
+                tokio::process::Command::new("tmux")
+                    .args(["select-pane", "-t", &pane_name, "-T", &agent_id])
+                    .output()
+                    .await
+                    .ok();
+
+                Ok(format!("Agent '{}' restarted", agent_id))
             }
         }
     }
