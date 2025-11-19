@@ -67,5 +67,12 @@ base64 = "0.21"  # Base64 encoding for PKCE
 # Secure credential storage
 keyring = "2.3"  # System keyring integration
 
+# Webview (optional feature)
+wry = { version = "0.43", optional = true }
+
+[features]
+default = []
+webview = ["wry"]
+
 [dev-dependencies]
 tempfile = "3.8"
