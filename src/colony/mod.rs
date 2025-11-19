@@ -21,6 +21,8 @@ pub mod metrics;
 pub mod metrics_cmd;
 pub mod plugin;
 pub mod plugin_cmd;
+pub mod relay;
+pub mod relay_cmd;
 pub mod skills;
 pub mod template;
 pub mod template_cmd;

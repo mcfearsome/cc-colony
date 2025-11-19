@@ -11,6 +11,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - **Task Management**: Assign and track tasks across agents
 - **Inter-Agent Messaging**: Broadcast messages and communicate between agents
 - **Interactive TUI**: Monitor and control your colony with a terminal UI
+- **Remote Control**: Connect to relay service for mobile/web control
 - **Git Worktree Isolation**: Each agent works in its own git worktree
 - **Shared Worktrees**: Multiple agents can collaborate in the same worktree
 - **Per-Agent Environment Variables**: Configure environment variables for each agent
@@ -19,6 +20,7 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 
 ## Commands
 
+### Core Commands
 - `colony init` - Initialize a new colony configuration
 - `colony start` - Start all agents in the colony
 - `colony attach` - Attach to the tmux session
@@ -30,6 +32,17 @@ Colony enables you to run multiple Claude Code agents in parallel, each in their
 - `colony destroy` - Destroy the colony and clean up resources
 - `colony tasks` - Manage tasks (list, create, claim, etc.)
 - `colony messages` - View messages between agents
+
+### Authentication
+- `colony auth login` - Authenticate with OAuth, API key, or Bedrock
+- `colony auth status` - Show authentication status
+- `colony auth logout` - Remove credentials
+- `colony auth refresh` - Refresh authentication token
+
+### Remote Control
+- `colony relay connect` - Connect to relay service for mobile/web control
+- `colony relay status` - Show relay connection status
+- `colony relay disconnect` - Disconnect from relay service
 
 ## Building
 
@@ -98,6 +111,50 @@ MCP servers configured in `colony.yml` will:
 - Be passed to Claude Code via the `--settings` flag
 
 See `colony.example.yml` for more examples of MCP server configurations.
+
+### Remote Control via Relay Service
+
+Connect your colony to app.colony.sh for mobile and web control:
+
+```bash
+# Connect to relay service
+colony relay connect
+
+# You'll be prompted for a token from https://app.colony.sh
+# Or provide it directly:
+colony relay connect --token YOUR_TOKEN
+
+# Check connection status
+colony relay status
+
+# Disconnect
+colony relay disconnect
+```
+
+Once connected, you can:
+- **Monitor** agents, tasks, and messages in real-time from your phone or web browser
+- **Send commands** remotely (send messages, create tasks, stop/start agents)
+- **Receive notifications** about colony activity
+- **Control from anywhere** - perfect for checking on long-running tasks
+
+The relay connection includes:
+- **Auto-reconnect** with exponential backoff
+- **Real-time state sync** every 5 seconds
+- **Command feedback** - know if remote commands succeeded or failed
+- **Secure WebSocket** connection with token authentication
+
+**Supported remote commands:**
+- Send messages to agents
+- Broadcast messages to all agents
+- Create tasks
+- Stop agents
+- Start agents
+- Restart agents
+
+Perfect for:
+- Checking on builds while away from your desk
+- Managing colonies from your phone
+- Monitoring multiple colonies from a single dashboard
 
 ### Shared Worktrees
 
