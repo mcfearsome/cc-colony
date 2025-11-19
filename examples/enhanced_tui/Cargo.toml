@@ -1,0 +1,35 @@
+[package]
+name = "enhanced_tui_examples"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "task_graph_ascii"
+path = "task_graph_ascii.rs"
+
+[[bin]]
+name = "plotters_demo"
+path = "plotters_demo.rs"
+
+[[bin]]
+name = "egui_widget"
+path = "egui_widget.rs"
+required-features = ["gui"]
+
+[dependencies]
+# For plotters example
+plotters = { version = "0.3", optional = true }
+
+# For terminal graphics
+viuer = { version = "0.7", optional = true }
+
+# For egui example
+eframe = { version = "0.27", optional = true }
+egui = { version = "0.27", optional = true }
+egui_plot = { version = "0.27", optional = true }
+
+[features]
+default = []
+charts = ["plotters", "viuer"]
+gui = ["eframe", "egui", "egui_plot"]
+all = ["charts", "gui"]
