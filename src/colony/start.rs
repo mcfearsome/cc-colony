@@ -42,10 +42,10 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     utils::header("Starting Colony");
     utils::info(&format!("Session name: {}", session_name));
 
-    // Install colony-message skill to ~/.claude/skills/ (system-wide)
-    if let Err(e) = skills::install_colony_message_skill() {
+    // Install all colony skills to ~/.claude/skills/ (system-wide)
+    if let Err(e) = skills::install_all_skills() {
         utils::warning(&format!(
-            "Failed to install colony-message skill: {}. Agents may not have skill documentation.",
+            "Failed to install colony skills: {}. Agents may not have skill documentation.",
             e
         ));
     }
