@@ -21,6 +21,9 @@ pub struct ColonyConfig {
     /// Optional shared state configuration
     #[serde(default)]
     pub shared_state: Option<crate::colony::state::SharedStateConfig>,
+    /// Authentication configuration
+    #[serde(default)]
+    pub auth: crate::colony::auth::AuthConfig,
 }
 
 /// Configuration for a single agent
@@ -300,6 +303,7 @@ impl ColonyConfig {
             repository: None, // No repository config by default
             executor: None, // Executor disabled by default
             shared_state: None, // No shared state config by default
+            auth: Default::default(), // Default auth (API key from env)
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),

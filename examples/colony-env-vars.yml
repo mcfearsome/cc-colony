@@ -1,0 +1,30 @@
+# Colony Configuration - Environment Variable Setup
+# Using API key from environment (most secure for version control)
+
+name: secure-dev-colony
+
+# Auth using environment variable
+auth:
+  provider: api-key
+  # No api_key specified - will use ANTHROPIC_API_KEY from environment
+
+agents:
+  - id: dev-agent
+    role: Developer
+    focus: Feature development
+    model: claude-sonnet-4-20250514
+
+    # Agent-specific environment variables
+    env:
+      DATABASE_URL: $DATABASE_URL
+      REDIS_URL: $REDIS_URL
+
+    # Custom instructions for this agent
+    instructions: |
+      When working with the database:
+      - Always use transactions for data modifications
+      - Write migration scripts for schema changes
+      - Update seed data if needed
+
+# This configuration is safe to commit to version control
+# since credentials come from environment variables

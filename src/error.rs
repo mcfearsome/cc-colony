@@ -24,6 +24,9 @@ pub enum ColonyError {
     #[error("Colony error: {0}")]
     Colony(String),
 
+    #[error("Authentication error: {0}")]
+    Auth(String),
+
     #[error("{0}")]
     Other(String),
 }
@@ -43,5 +46,11 @@ impl From<String> for ColonyError {
 impl From<&str> for ColonyError {
     fn from(s: &str) -> Self {
         ColonyError::Other(s.to_string())
+    }
+}
+
+impl From<reqwest::Error> for ColonyError {
+    fn from(e: reqwest::Error) -> Self {
+        ColonyError::Auth(format!("HTTP request failed: {}", e))
     }
 }

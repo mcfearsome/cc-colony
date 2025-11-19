@@ -6,6 +6,7 @@
 
 - [Installation](./getting-started/installation.md)
 - [Quick Start](./getting-started/quick-start.md)
+- [Authentication](./getting-started/authentication.md)
 - [Configuration](./getting-started/configuration.md)
 
 # Core Concepts
@@ -24,6 +25,7 @@
 - [Security Auditing](./examples/security-audit.md)
 - [Documentation Team](./examples/docs-team.md)
 - [Testing Pipeline](./examples/testing-pipeline.md)
+- [Data Pipeline](./examples/data-pipeline.md)
 
 # CLI Reference
 
@@ -46,6 +48,7 @@
 - [Git-Backed State](./advanced/git-state.md)
 - [Custom Templates](./advanced/custom-templates.md)
 - [Plugin Development](./advanced/plugin-development.md)
+- [Best Practices](./advanced/best-practices.md)
 
 # Troubleshooting
 

@@ -278,7 +278,168 @@ echo $TERM
 # Try with different terminal
 export TERM=xterm-256color
 colony tui
+
+# Check for corrupted data
+colony health
 ```
+
+### Dialog not responding
+
+**Problem**: Pressed `b`, `t`, or `m` but nothing happens
+
+**Solution**:
+- Ensure you're not already in a dialog (press `Esc` first)
+- Check that colony is properly initialized (`ls colony.yml`)
+- Verify agents are configured (`colony status`)
+- Restart TUI: press `q`, then `colony tui`
+
+### Can't type in dialog
+
+**Problem**: Keyboard input not working in dialogs
+
+**Solution**:
+- Ensure dialog is actually open (yellow border should be visible)
+- Try pressing `Esc` to cancel and re-open
+- Check terminal emulator settings (some intercept keys)
+- Verify terminal size is adequate (minimum 80x24)
+
+### Dialog shows garbled text
+
+**Problem**: Dialog content displays incorrectly
+
+**Solution**:
+```bash
+# Set proper locale
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+
+# Restart TUI
+colony tui
+```
+
+### Status message not clearing
+
+**Problem**: Status bar stuck showing old message
+
+**Solution**:
+- Messages clear automatically after actions
+- Press `r` to refresh and clear status
+- Navigate to different tab and back
+
+### Tabs not switching
+
+**Problem**: Number keys 1-5 don't switch tabs
+
+**Solution**:
+- Ensure TUI has focus (click the terminal window)
+- Check if running inside another tmux session (can interfere with keys)
+- Use `Tab` key to cycle through tabs instead
+- Exit nested tmux if present: `tmux detach`
+
+## Workflow Issues
+
+### Workflow not starting
+
+**Problem**: `colony workflow run` doesn't execute
+
+**Solution**:
+```bash
+# Check workflow definition exists
+ls .colony/workflows/
+
+# Validate workflow syntax
+colony workflow show workflow-name
+
+# Check agents are available
+colony status
+
+# View workflow logs
+colony logs --pattern "workflow"
+```
+
+### Workflow stuck on step
+
+**Problem**: Workflow halts at specific step
+
+**Solution**:
+```bash
+# Check workflow status
+colony workflow status <run-id>
+
+# View agent logs for that step
+colony logs <agent-name>
+
+# Check for blocked tasks
+colony state task list --status blocked
+
+# Cancel and retry
+colony workflow cancel <run-id>
+colony workflow run workflow-name
+```
+
+### Steps executing out of order
+
+**Problem**: Dependencies not respected
+
+**Solution**:
+- Verify `depends_on` is correctly specified in workflow YAML
+- Check for circular dependencies
+- Ensure step names match exactly
+- Review workflow validation: `colony workflow show workflow-name`
+
+### Workflow timeout
+
+**Problem**: "Workflow exceeded timeout"
+
+**Solution**:
+```yaml
+# Increase timeout in workflow definition
+steps:
+  - name: long-running-step
+    timeout: 30m  # Increase from default
+    agent: worker
+```
+
+## Communication Issues
+
+### Messages not delivered
+
+**Problem**: Agent doesn't receive messages
+
+**Solution**:
+```bash
+# Check message queue
+colony messages all
+
+# Verify agent is running
+colony status
+
+# Check message file permissions
+ls -la .colony/messages/
+
+# Manually inspect messages
+cat .colony/messages/*.json
+```
+
+### Broadcast not visible to all agents
+
+**Problem**: Some agents miss broadcasts
+
+**Solution**:
+- Broadcasts are stored as messages to "all"
+- Agents must actively check messages
+- Verify all agents are running: `colony status`
+- Check message delivery in TUI: Tab 3
+
+### Agent not responding to messages
+
+**Problem**: Agent ignores directed messages
+
+**Solution**:
+- Agents must actively check their message queue
+- Verify agent ID matches exactly (case-sensitive)
+- Check agent's startup prompt includes message checking
+- Review agent logs: `colony logs <agent-id>`
 
 ## Performance Issues
 
@@ -287,10 +448,18 @@ colony tui
 **Problem**: Agents take long to respond
 
 **Solution**:
-- Use faster model (Haiku instead of Opus)
+```yaml
+# Use faster models
+agents:
+  - id: quick-agent
+    model: claude-sonnet-4  # Faster than opus
+```
+
+Additional steps:
 - Reduce complexity of tasks
 - Check network connection
-- Monitor with `colony metrics`
+- Monitor with `colony metrics show`
+- Review API rate limits
 
 ### High memory usage
 
@@ -298,11 +467,172 @@ colony tui
 
 **Solution**:
 ```bash
-# Check metrics
-colony metrics show system.memory.used
+# Check current usage
+colony health
 
-# Reduce number of agents
-# Or use lighter models (Haiku)
+# Reduce number of concurrent agents
+# Stop idle agents:
+colony stop agent-id
+
+# Use lighter models in colony.yml
+```
+
+### Disk space filling up
+
+**Problem**: `.colony/` directory growing large
+
+**Solution**:
+```bash
+# Check disk usage
+du -sh .colony/*
+
+# Clean old logs
+find .colony/logs -type f -mtime +7 -delete
+
+# Remove old metrics
+colony metrics clear --older-than 7d
+
+# Clean completed tasks
+colony state task list --status completed |
+  grep "$(date -d '30 days ago' +%Y-%m)" |
+  xargs -I {} colony state task delete {}
+
+# Prune git worktrees
+git worktree prune
+```
+
+## Debugging Techniques
+
+### Enable debug logging
+
+```bash
+# Set environment variable
+export COLONY_LOG_LEVEL=debug
+
+# Start colony
+colony start
+
+# Or for specific commands
+COLONY_LOG_LEVEL=debug colony tui
+```
+
+### Inspect colony state
+
+```bash
+# View all state files
+find .colony/ -type f | head -20
+
+# Check configuration
+cat colony.yml
+
+# View tasks
+cat .colony/state/tasks.jsonl
+
+# Check messages
+ls -la .colony/messages/
+
+# Inspect metrics
+ls -la .colony/metrics/
+```
+
+### Manual agent testing
+
+```bash
+# Attach to tmux and watch agent
+colony attach
+
+# Navigate to agent pane (Ctrl+b, arrow keys)
+# Observe agent behavior in real-time
+
+# Detach without stopping: Ctrl+b, d
+```
+
+### Network debugging
+
+```bash
+# Test Claude API connectivity
+curl -I https://api.anthropic.com
+
+# Check for proxy issues
+echo $HTTP_PROXY
+echo $HTTPS_PROXY
+
+# Test with verbose output
+claude --version --verbose
+```
+
+### File system debugging
+
+```bash
+# Check permissions
+ls -la .colony/
+ls -la .git/
+
+# Verify disk space
+df -h .
+
+# Check inode usage (can cause issues)
+df -i .
+
+# Test file creation
+touch .colony/test.txt
+rm .colony/test.txt
+```
+
+### Database issues (SQLite)
+
+If using SQLite backend for state:
+
+```bash
+# Check database integrity
+sqlite3 .colony/state/colony.db "PRAGMA integrity_check;"
+
+# View tables
+sqlite3 .colony/state/colony.db ".tables"
+
+# Query tasks
+sqlite3 .colony/state/colony.db "SELECT * FROM tasks LIMIT 5;"
+
+# Repair corrupted database (backup first!)
+cp .colony/state/colony.db .colony/state/colony.db.backup
+sqlite3 .colony/state/colony.db ".dump" | sqlite3 .colony/state/colony_new.db
+mv .colony/state/colony_new.db .colony/state/colony.db
+```
+
+### Git state debugging
+
+```bash
+# Check git state
+cd .colony/state
+git status
+git log --oneline -5
+
+# Look for conflicts
+git diff
+
+# Check remote sync
+git remote -v
+git fetch origin
+git log --oneline origin/main..HEAD
+
+# Return to project root
+cd ../..
+```
+
+### Resource monitoring
+
+```bash
+# Monitor CPU and memory
+top -p $(pgrep -f colony)
+
+# Monitor file handles
+lsof | grep colony
+
+# Monitor network connections
+netstat -an | grep ESTABLISHED | grep claude
+
+# Watch disk I/O
+iotop -p $(pgrep -f colony)
 ```
 
 ## Getting Help

@@ -228,5 +228,6 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
         agents,
         executor: None,
         shared_state: None,
+        auth: Default::default(),
     })
 }
