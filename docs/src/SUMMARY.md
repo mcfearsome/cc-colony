@@ -6,6 +6,7 @@
 
 - [Installation](./getting-started/installation.md)
 - [Quick Start](./getting-started/quick-start.md)
+- [Authentication](./getting-started/authentication.md)
 - [Configuration](./getting-started/configuration.md)
 
 # Core Concepts

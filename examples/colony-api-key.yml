@@ -1,0 +1,36 @@
+# Colony Configuration - API Key Authentication
+# For developers with Anthropic API keys
+
+name: my-dev-colony
+
+# API key authentication
+# Set ANTHROPIC_API_KEY environment variable or specify here
+auth:
+  provider: api-key
+  # Option 1: Use environment variable (recommended)
+  # api_key: $ANTHROPIC_API_KEY
+
+  # Option 2: Specify directly (not recommended for version control)
+  # api_key: sk-ant-api-key-here
+
+agents:
+  - id: backend-dev
+    role: Backend Engineer
+    focus: API development and database design
+    model: claude-sonnet-4-20250514
+
+  - id: frontend-dev
+    role: Frontend Engineer
+    focus: React components and UI/UX
+    model: claude-sonnet-4-20250514
+
+  - id: devops
+    role: DevOps Engineer
+    focus: CI/CD, deployment, and infrastructure
+    model: claude-opus-4-20250514  # Use Opus for complex infrastructure decisions
+
+# Optional: Add environment variables for all agents
+# These will be available in each agent's tmux pane
+# env:
+#   DATABASE_URL: postgresql://localhost/mydb
+#   API_URL: http://localhost:3000

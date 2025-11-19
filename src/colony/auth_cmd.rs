@@ -6,6 +6,18 @@ use crate::colony::config::ColonyConfig;
 use crate::error::ColonyResult;
 use crate::utils;
 
+/// Check if keyring is available
+fn is_keyring_available() -> bool {
+    match keyring::Entry::new("colony-cli-test", "test") {
+        Ok(entry) => {
+            let test_result = entry.set_password("test").is_ok();
+            let _ = entry.delete_password();
+            test_result
+        }
+        Err(_) => false,
+    }
+}
+
 /// Get the default token path
 fn get_token_path() -> PathBuf {
     if let Some(home) = dirs::home_dir() {
@@ -31,7 +43,16 @@ pub async fn login_oauth() -> ColonyResult<()> {
 
     utils::success("Authentication successful!");
     println!("\n✨ You can now use Colony with your Claude subscription.");
-    println!("💾 Token saved to: {}", token_path.display());
+
+    // Check if keyring was used
+    if is_keyring_available() {
+        println!("🔒 Token securely stored in system keyring");
+        println!("📄 Backup saved to: {}", token_path.display());
+    } else {
+        println!("💾 Token saved to: {}", token_path.display());
+        println!("💡 Tip: Install keyring support for encrypted storage");
+    }
+
     println!("\n📝 To use this authentication, update your colony.yml:");
     println!("   auth:");
     println!("     provider: anthropic-oauth");
@@ -158,6 +179,12 @@ pub async fn status() -> ColonyResult<()> {
                     println!("\nRun: colony auth refresh");
                 } else {
                     println!("Status: ✅ Authenticated");
+
+                    if is_keyring_available() {
+                        println!("Storage: 🔒 System keyring (encrypted)");
+                    } else {
+                        println!("Storage: 📄 File-based");
+                    }
 
                     if let Some(expires_at) = token.expires_at {
                         let now = std::time::SystemTime::now()

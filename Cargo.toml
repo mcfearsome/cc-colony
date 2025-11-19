@@ -64,5 +64,8 @@ open = "5.0"  # Open browser
 urlencoding = "2.1"  # URL encoding
 base64 = "0.21"  # Base64 encoding for PKCE
 
+# Secure credential storage
+keyring = "2.3"  # System keyring integration
+
 [dev-dependencies]
 tempfile = "3.8"

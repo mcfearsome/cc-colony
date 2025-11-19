@@ -1,0 +1,50 @@
+# Colony Configuration - AWS Bedrock
+# For organizations using AWS infrastructure
+
+name: enterprise-colony
+
+# Bedrock authentication
+auth:
+  provider: bedrock
+  region: us-east-1
+  profile: default  # AWS CLI profile name
+
+agents:
+  - id: architect
+    role: Software Architect
+    focus: System design and technical decision making
+    model: claude-opus-4-20250514  # Use Opus for architecture
+
+  - id: backend-1
+    role: Backend Developer
+    focus: Microservices and API development
+    model: claude-sonnet-4-20250514
+
+  - id: backend-2
+    role: Backend Developer
+    focus: Database and data layer
+    model: claude-sonnet-4-20250514
+
+  - id: security-auditor
+    role: Security Specialist
+    focus: Security review and vulnerability scanning
+    model: claude-sonnet-4-20250514
+
+  - id: documentation
+    role: Technical Writer
+    focus: API documentation and developer guides
+    model: claude-sonnet-4-20250514
+
+# Shared state with git backend
+shared_state:
+  backend: git-backed
+  location: in-repo
+
+# Optional: Repository configuration
+repository:
+  type: source
+  purpose: Enterprise microservices platform
+  conventions:
+    - Follow company coding standards
+    - All APIs must be documented
+    - Security review required for auth changes

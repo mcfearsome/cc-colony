@@ -1,0 +1,30 @@
+# Colony Configuration - OAuth Authentication
+# For Claude Pro/Max users
+
+name: my-dev-colony
+
+# OAuth authentication (browser-based)
+auth:
+  provider: anthropic-oauth
+  token_path: ~/.colony/auth/tokens.json
+
+agents:
+  - id: main-dev
+    role: Full-Stack Developer
+    focus: Feature implementation and bug fixes
+    model: claude-sonnet-4-20250514
+
+  - id: code-reviewer
+    role: Code Reviewer
+    focus: Review PRs for quality, security, and best practices
+    model: claude-sonnet-4-20250514
+
+  - id: test-writer
+    role: Test Engineer
+    focus: Write comprehensive unit and integration tests
+    model: claude-sonnet-4-20250514
+
+# Optional: Enable shared state for collaboration
+shared_state:
+  backend: git-backed
+  location: in-repo
