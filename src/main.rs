@@ -31,6 +31,12 @@ enum Commands {
     /// Attach to the tmux session to watch agents work
     Attach,
 
+    /// Manage authentication (API keys, OAuth, Bedrock)
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommands,
+    },
+
     /// Interactive TUI for monitoring and controlling the colony
     Tui,
 
@@ -134,6 +140,49 @@ enum MessageCommands {
 
     /// List all messages in the system
     All,
+}
+
+#[derive(Subcommand)]
+enum AuthCommands {
+    /// Authenticate with OAuth (for Claude Pro/Max users)
+    Login {
+        /// Authentication method
+        #[arg(long, value_enum, default_value = "oauth")]
+        method: AuthMethod,
+
+        /// API key (for api-key method)
+        #[arg(long)]
+        api_key: Option<String>,
+
+        /// AWS region (for bedrock method)
+        #[arg(long)]
+        region: Option<String>,
+
+        /// AWS profile (for bedrock method)
+        #[arg(long)]
+        profile: Option<String>,
+    },
+
+    /// Show authentication status
+    Status,
+
+    /// Logout (remove credentials)
+    Logout,
+
+    /// Refresh authentication token
+    Refresh,
+}
+
+#[derive(clap::ValueEnum, Clone)]
+enum AuthMethod {
+    /// OAuth with Claude.ai (Pro/Max users)
+    OAuth,
+    /// Anthropic API key
+    ApiKey,
+    /// AWS Bedrock
+    Bedrock,
+    /// Google Cloud Vertex AI
+    VertexAi,
 }
 
 #[derive(Subcommand)]
@@ -515,6 +564,25 @@ async fn run() -> ColonyResult<()> {
         Commands::Init => colony::init::run().await,
         Commands::Start { no_attach } => colony::start::run(no_attach).await,
         Commands::Attach => colony::attach::run().await,
+        Commands::Auth { command } => match command {
+            AuthCommands::Login {
+                method,
+                api_key,
+                region,
+                profile,
+            } => match method {
+                AuthMethod::OAuth => colony::auth_cmd::login_oauth().await,
+                AuthMethod::ApiKey => colony::auth_cmd::login_api_key(api_key).await,
+                AuthMethod::Bedrock => colony::auth_cmd::login_bedrock(region, profile).await,
+                AuthMethod::VertexAi => {
+                    println!("Vertex AI authentication not yet implemented");
+                    Ok(())
+                }
+            },
+            AuthCommands::Status => colony::auth_cmd::status().await,
+            AuthCommands::Logout => colony::auth_cmd::logout().await,
+            AuthCommands::Refresh => colony::auth_cmd::refresh().await,
+        },
         Commands::Tui => {
             let config_path = std::path::Path::new("colony.yml");
             colony::tui::run_tui(config_path).map_err(crate::error::ColonyError::Colony)?;

@@ -4,6 +4,8 @@
 /// running in parallel with proper isolation and state management.
 pub mod agent;
 pub mod attach;
+pub mod auth;
+pub mod auth_cmd;
 pub mod broadcast;
 pub mod config;
 pub mod controller;
@@ -38,5 +40,6 @@ pub mod worktree;
 
 // Re-export commonly used types
 pub use agent::{Agent, AgentStatus};
+pub use auth::AuthConfig;
 pub use config::ColonyConfig;
 pub use controller::ColonyController;
