@@ -222,6 +222,34 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
         None
     };
 
+    // Telemetry opt-in
+    println!();
+    println!("{}", "Telemetry".bold().cyan());
+    println!("{}", "─".repeat(50));
+    println!("Colony can collect anonymous usage data to help improve the tool.");
+    println!("This includes:");
+    println!("  • Commands used (not arguments or data)");
+    println!("  • Feature usage patterns");
+    println!("  • Error types (no sensitive information)");
+    println!("  • Performance metrics");
+    println!();
+    println!("{}", "We never collect:".bold());
+    println!("  • Code, file contents, or paths");
+    println!("  • API keys or credentials");
+    println!("  • Personal information");
+    println!();
+
+    let enable_telemetry = utils::confirm("Enable telemetry to help improve Colony?");
+
+    let mut telemetry = crate::colony::config::TelemetryConfig::default();
+    if enable_telemetry {
+        telemetry.enabled = true;
+        telemetry.get_or_create_anonymous_id();
+        utils::success("Telemetry enabled (you can disable it anytime in colony.yml)");
+    } else {
+        utils::info("Telemetry disabled (you can enable it anytime in colony.yml)");
+    }
+
     Ok(ColonyConfig {
         name,
         repository: None,
@@ -229,5 +257,6 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
         executor: None,
         shared_state: None,
         auth: Default::default(),
+        telemetry,
     })
 }

@@ -590,7 +590,16 @@ async fn main() {
 async fn run() -> ColonyResult<()> {
     let cli = Cli::parse();
 
-    match cli.command {
+    // Initialize telemetry if config exists
+    let telemetry_client = init_telemetry().await;
+
+    // Get command name for telemetry
+    let command_name = get_command_name(&cli.command);
+
+    // Track command execution
+    let start_time = std::time::Instant::now();
+
+    let result = match cli.command {
         Commands::Init => colony::init::run().await,
         Commands::Start { no_attach } => colony::start::run(no_attach).await,
         Commands::Attach => colony::attach::run().await,
@@ -782,5 +791,70 @@ async fn run() -> ColonyResult<()> {
                 colony::metrics_cmd::record_sample(&name, value)
             }
         },
+    };
+
+    // Track command completion/error
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+
+    if let Some(client) = telemetry_client {
+        match &result {
+            Ok(_) => {
+                client.track_command(&command_name, Some(duration_ms)).await;
+            }
+            Err(e) => {
+                let error_type = format!("{:?}", e);
+                client.track_error(&error_type, &command_name).await;
+                client.track_command(&command_name, Some(duration_ms)).await;
+            }
+        }
+    }
+
+    result
+}
+
+/// Initialize telemetry client if config exists and telemetry is enabled
+async fn init_telemetry() -> Option<colony::telemetry::TelemetryClient> {
+    let config_path = std::path::Path::new("colony.yml");
+
+    if !config_path.exists() {
+        return None;
+    }
+
+    match colony::config::ColonyConfig::load(config_path) {
+        Ok(config) => {
+            if config.telemetry.enabled {
+                Some(colony::telemetry::TelemetryClient::new(config.telemetry))
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    }
+}
+
+/// Get a human-readable command name for telemetry
+fn get_command_name(command: &Commands) -> String {
+    match command {
+        Commands::Init => "init".to_string(),
+        Commands::Start { .. } => "start".to_string(),
+        Commands::Attach => "attach".to_string(),
+        Commands::Auth { .. } => "auth".to_string(),
+        Commands::Relay { .. } => "relay".to_string(),
+        Commands::Tui => "tui".to_string(),
+        #[cfg(feature = "webview")]
+        Commands::Dashboard => "dashboard".to_string(),
+        Commands::Status => "status".to_string(),
+        Commands::Health => "health".to_string(),
+        Commands::Broadcast { .. } => "broadcast".to_string(),
+        Commands::Stop { .. } => "stop".to_string(),
+        Commands::Logs { .. } => "logs".to_string(),
+        Commands::Destroy => "destroy".to_string(),
+        Commands::Messages { .. } => "messages".to_string(),
+        Commands::Tasks { .. } => "tasks".to_string(),
+        Commands::State { .. } => "state".to_string(),
+        Commands::Workflow { .. } => "workflow".to_string(),
+        Commands::Plugin { .. } => "plugin".to_string(),
+        Commands::Template { .. } => "template".to_string(),
+        Commands::Metrics { .. } => "metrics".to_string(),
     }
 }

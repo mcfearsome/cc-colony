@@ -464,6 +464,13 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Save state
     controller.save_state()?;
 
+    // Track colony started event (if telemetry is enabled)
+    if controller.config().telemetry.enabled {
+        let telemetry_client = crate::colony::telemetry::TelemetryClient::new(controller.config().telemetry.clone());
+        let has_executor = controller.config().executor.as_ref().map_or(false, |e| e.enabled);
+        telemetry_client.track_colony_started(agent_count, has_executor).await;
+    }
+
     utils::header("Colony Started Successfully!");
     let running_count = controller
         .agents()
