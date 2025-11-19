@@ -40,7 +40,7 @@ impl EventHandler {
 }
 
 /// Keyboard action
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// Quit the application
     Quit,
@@ -68,17 +68,49 @@ pub enum Action {
     Cancel,
     /// Confirm current action
     Confirm,
+    /// Character input (for dialogs)
+    CharInput(char),
+    /// Backspace (for dialogs)
+    Backspace,
     /// No action
     None,
 }
 
-impl From<KeyEvent> for Action {
-    fn from(key: KeyEvent) -> Self {
+impl Action {
+    /// Convert a key event to an action, with context about whether we're in a dialog
+    pub fn from_key(key: KeyEvent, in_dialog: bool) -> Self {
+        // Handle control characters first
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            return match key.code {
+                KeyCode::Char('c') => Action::Quit,
+                _ => Action::None,
+            };
+        }
+
+        // Handle special keys
+        match key.code {
+            KeyCode::Esc => return Action::Cancel,
+            KeyCode::Enter => return Action::Confirm,
+            KeyCode::Backspace => {
+                if in_dialog {
+                    return Action::Backspace;
+                }
+            }
+            _ => {}
+        }
+
+        // If we're in a dialog, capture printable characters
+        if in_dialog {
+            if let KeyCode::Char(c) = key.code {
+                return Action::CharInput(c);
+            }
+            return Action::None;
+        }
+
+        // Normal mode key bindings
         match (key.code, key.modifiers) {
             // Quit
             (KeyCode::Char('q'), KeyModifiers::NONE) => Action::Quit,
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) => Action::Quit,
-            (KeyCode::Esc, _) => Action::Cancel,
 
             // Tab switching
             (KeyCode::Char('1'), KeyModifiers::NONE) => Action::SwitchTab(0),
@@ -102,9 +134,15 @@ impl From<KeyEvent> for Action {
             (KeyCode::Char('b'), KeyModifiers::NONE) => Action::BroadcastMessage,
             (KeyCode::Char('t'), KeyModifiers::NONE) => Action::CreateTask,
             (KeyCode::Char('m'), KeyModifiers::NONE) => Action::SendMessage,
-            (KeyCode::Enter, KeyModifiers::NONE) => Action::Confirm,
 
             _ => Action::None,
         }
+    }
+}
+
+impl From<KeyEvent> for Action {
+    fn from(key: KeyEvent) -> Self {
+        // Default to not in dialog
+        Action::from_key(key, false)
     }
 }

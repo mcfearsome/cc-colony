@@ -39,6 +39,11 @@ pub fn render(f: &mut Frame, app: &App) {
 
     // Render status bar
     render_status_bar(f, app, chunks[3]);
+
+    // Render dialog on top if active
+    if app.active_dialog.is_some() {
+        render_dialog(f, app);
+    }
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
@@ -651,16 +656,33 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
         .filter(|a| a.status == AgentStatus::Running)
         .count();
 
-    let status_text = vec![Line::from(vec![
-        Span::styled("Status: ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            format!("{} agents running", running_count),
-            Style::default().fg(Color::Green),
-        ),
-        Span::raw("  |  "),
-        Span::styled("Shortcuts: ", Style::default().fg(Color::Gray)),
-        Span::raw("q=Quit  r=Refresh  ?=Help  1-5=Switch Tab"),
-    ])];
+    let status_text = if let Some((ref message, is_error)) = app.status_message {
+        // Show status message
+        vec![Line::from(vec![
+            Span::styled(
+                if is_error { "Error: " } else { "Status: " },
+                Style::default()
+                    .fg(if is_error { Color::Red } else { Color::Green })
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                message,
+                Style::default().fg(if is_error { Color::Red } else { Color::White }),
+            ),
+        ])]
+    } else {
+        // Show normal status
+        vec![Line::from(vec![
+            Span::styled("Status: ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                format!("{} agents running", running_count),
+                Style::default().fg(Color::Green),
+            ),
+            Span::raw("  |  "),
+            Span::styled("Shortcuts: ", Style::default().fg(Color::Gray)),
+            Span::raw("q=Quit  r=Refresh  b=Broadcast  t=Task  m=Message  ?=Help"),
+        ])]
+    };
 
     let paragraph = Paragraph::new(status_text).block(Block::default().borders(Borders::ALL));
 
@@ -699,4 +721,116 @@ fn truncate(s: &str, max_len: usize) -> String {
     } else {
         format!("{}...", &s[..max_len - 3])
     }
+}
+
+/// Render a dialog overlay
+fn render_dialog(f: &mut Frame, app: &App) {
+    use super::app::Dialog;
+
+    let dialog = match &app.active_dialog {
+        Some(d) => d,
+        None => return,
+    };
+
+    // Create a centered popup area
+    let area = f.size();
+    let width = std::cmp::min(80, area.width - 4);
+    let height = 10;
+    let x = (area.width.saturating_sub(width)) / 2;
+    let y = (area.height.saturating_sub(height)) / 2;
+
+    let popup_area = Rect {
+        x,
+        y,
+        width,
+        height,
+    };
+
+    // Clear the area behind the dialog
+    let clear_block = Block::default()
+        .borders(Borders::NONE)
+        .style(Style::default().bg(Color::Black));
+    f.render_widget(clear_block, popup_area);
+
+    // Create dialog content
+    let mut lines = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            dialog.prompt(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+
+    // Show previous inputs for multi-step dialogs
+    match dialog {
+        Dialog::CreateTask { step } | Dialog::SendMessage { step } => {
+            if *step > 0 {
+                lines.push(Line::from(vec![Span::styled(
+                    "Previous inputs:",
+                    Style::default().fg(Color::Gray),
+                )]));
+
+                for (i, input) in app.dialog_inputs.iter().enumerate() {
+                    let temp_dialog = if matches!(dialog, Dialog::CreateTask { .. }) {
+                        Dialog::CreateTask { step: i }
+                    } else {
+                        Dialog::SendMessage { step: i }
+                    };
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            format!("  {}: ", temp_dialog.prompt()),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                        Span::styled(input, Style::default().fg(Color::Gray)),
+                    ]));
+                }
+                lines.push(Line::from(""));
+            }
+
+            // Show progress
+            let progress = format!("Step {} of {}", step + 1, dialog.total_steps());
+            lines.insert(
+                0,
+                Line::from(vec![Span::styled(
+                    progress,
+                    Style::default().fg(Color::Yellow),
+                )]),
+            );
+        }
+        _ => {}
+    }
+
+    // Show current input with cursor
+    let input_line = vec![
+        Span::styled("> ", Style::default().fg(Color::Green)),
+        Span::styled(&app.input_buffer, Style::default().fg(Color::White)),
+        Span::styled("█", Style::default().fg(Color::White)),
+    ];
+    lines.push(Line::from(input_line));
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("Enter", Style::default().fg(Color::Green)),
+        Span::styled(" to confirm  ", Style::default().fg(Color::Gray)),
+        Span::styled("Esc", Style::default().fg(Color::Red)),
+        Span::styled(" to cancel", Style::default().fg(Color::Gray)),
+    ]));
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+                .title(dialog.title())
+                .title_style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+        )
+        .style(Style::default().bg(Color::Black));
+
+    f.render_widget(paragraph, popup_area);
 }
