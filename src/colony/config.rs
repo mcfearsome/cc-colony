@@ -111,9 +111,9 @@ pub struct AgentConfig {
     #[serde(default)]
     pub instructions: Option<String>,
     #[serde(default)]
-    pub capabilities: Option<String>,
+    pub capabilities: Option<CapabilitiesConfig>,
     #[serde(default)]
-    pub nudge: Option<String>,
+    pub nudge: Option<NudgeConfig>,
     /// Optional completely custom startup prompt
     /// If provided, this replaces the entire generated startup prompt
     /// Use this for complete control over the agent's initial instructions

@@ -46,6 +46,7 @@ impl Tab {
             4 => Tab::Compose,
             5 => Tab::Instructions,
             6 => Tab::Help,
+            _ => Tab::Agents, // Default to Agents for invalid indices
         }
     }
 
@@ -178,7 +179,7 @@ impl App {
             match action {
                 Action::Cancel => self.cancel_dialog(),
                 Action::Confirm => self.confirm_dialog(),
-                Action::CharInput(c) => self.input_buffer.push(c),
+                Action::InputChar(c) => self.input_buffer.push(c),
                 Action::Backspace => {
                     self.input_buffer.pop();
                 }

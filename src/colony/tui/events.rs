@@ -104,7 +104,7 @@ impl Action {
         // If we're in a dialog, capture printable characters
         if in_dialog {
             if let KeyCode::Char(c) = key.code {
-                return Action::CharInput(c);
+                return Action::InputChar(c);
             }
             return Action::None;
         }
