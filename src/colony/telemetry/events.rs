@@ -111,11 +111,7 @@ impl TelemetryEvent {
     }
 
     /// Create an agent lifecycle event
-    pub fn agent_lifecycle(
-        session_id: String,
-        anonymous_id: String,
-        action: &str,
-    ) -> Self {
+    pub fn agent_lifecycle(session_id: String, anonymous_id: String, action: &str) -> Self {
         let mut properties = HashMap::new();
         properties.insert("action".to_string(), action.to_string());
 
@@ -147,11 +143,7 @@ impl TelemetryEvent {
     }
 
     /// Create a feature usage event
-    pub fn feature_used(
-        session_id: String,
-        anonymous_id: String,
-        feature: &str,
-    ) -> Self {
+    pub fn feature_used(session_id: String, anonymous_id: String, feature: &str) -> Self {
         let mut properties = HashMap::new();
         properties.insert("feature".to_string(), feature.to_string());
 
@@ -193,11 +185,7 @@ impl TelemetryEvent {
     }
 
     /// Create a session ended event
-    pub fn session_ended(
-        session_id: String,
-        anonymous_id: String,
-        duration_ms: u64,
-    ) -> Self {
+    pub fn session_ended(session_id: String, anonymous_id: String, duration_ms: u64) -> Self {
         let mut properties = HashMap::new();
         properties.insert("duration_ms".to_string(), duration_ms.to_string());
 

@@ -321,8 +321,8 @@ impl RelayClient {
                 assigned_to,
                 priority,
             } => {
-                use crate::colony::tasks::{Task, TaskPriority};
                 use crate::colony::tasks::queue::TaskQueue;
+                use crate::colony::tasks::{Task, TaskPriority};
 
                 let task_id = format!("relay-{}", Utc::now().timestamp());
                 let priority_enum = match priority.as_deref() {
@@ -373,7 +373,9 @@ impl RelayClient {
                     .agents
                     .iter()
                     .find(|a| a.id == agent_id)
-                    .ok_or_else(|| ColonyError::Colony(format!("Agent '{}' not found in config", agent_id)))?
+                    .ok_or_else(|| {
+                        ColonyError::Colony(format!("Agent '{}' not found in config", agent_id))
+                    })?
                     .clone();
 
                 drop(controller_lock);
@@ -387,8 +389,8 @@ impl RelayClient {
                         "split-window",
                         "-t",
                         &session_name,
-                        "-h",  // horizontal split
-                        "-P",  // print pane info
+                        "-h", // horizontal split
+                        "-P", // print pane info
                         "-F",
                         "#{pane_id}",
                     ])
@@ -423,7 +425,9 @@ impl RelayClient {
                     .agents
                     .iter()
                     .find(|a| a.id == agent_id)
-                    .ok_or_else(|| ColonyError::Colony(format!("Agent '{}' not found in config", agent_id)))?
+                    .ok_or_else(|| {
+                        ColonyError::Colony(format!("Agent '{}' not found in config", agent_id))
+                    })?
                     .clone();
 
                 drop(controller_lock);
@@ -445,8 +449,8 @@ impl RelayClient {
                         "split-window",
                         "-t",
                         &session_name,
-                        "-h",  // horizontal split
-                        "-P",  // print pane info
+                        "-h", // horizontal split
+                        "-P", // print pane info
                         "-F",
                         "#{pane_id}",
                     ])

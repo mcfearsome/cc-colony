@@ -5,13 +5,11 @@ use std::path::Path;
 
 /// Load a workflow definition from a YAML file
 pub fn load_workflow_definition(path: &Path) -> ColonyResult<WorkflowDefinition> {
-    let content = std::fs::read_to_string(path).map_err(|e| {
-        ColonyError::Colony(format!("Failed to read workflow file: {}", e))
-    })?;
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| ColonyError::Colony(format!("Failed to read workflow file: {}", e)))?;
 
-    let definition: WorkflowDefinition = serde_yaml::from_str(&content).map_err(|e| {
-        ColonyError::Colony(format!("Failed to parse workflow YAML: {}", e))
-    })?;
+    let definition: WorkflowDefinition = serde_yaml::from_str(&content)
+        .map_err(|e| ColonyError::Colony(format!("Failed to parse workflow YAML: {}", e)))?;
 
     validate_workflow_definition(&definition)?;
 
@@ -19,17 +17,12 @@ pub fn load_workflow_definition(path: &Path) -> ColonyResult<WorkflowDefinition>
 }
 
 /// Save a workflow definition to a YAML file
-pub fn save_workflow_definition(
-    path: &Path,
-    definition: &WorkflowDefinition,
-) -> ColonyResult<()> {
-    let yaml = serde_yaml::to_string(definition).map_err(|e| {
-        ColonyError::Colony(format!("Failed to serialize workflow: {}", e))
-    })?;
+pub fn save_workflow_definition(path: &Path, definition: &WorkflowDefinition) -> ColonyResult<()> {
+    let yaml = serde_yaml::to_string(definition)
+        .map_err(|e| ColonyError::Colony(format!("Failed to serialize workflow: {}", e)))?;
 
-    std::fs::write(path, yaml).map_err(|e| {
-        ColonyError::Colony(format!("Failed to write workflow file: {}", e))
-    })?;
+    std::fs::write(path, yaml)
+        .map_err(|e| ColonyError::Colony(format!("Failed to write workflow file: {}", e)))?;
 
     Ok(())
 }

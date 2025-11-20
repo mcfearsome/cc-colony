@@ -31,13 +31,22 @@ pub fn list_plugins() -> ColonyResult<()> {
             "disabled".dimmed()
         };
 
-        println!("  {} {} ({})", plugin.name().bold(), plugin.version().dimmed(), status);
+        println!(
+            "  {} {} ({})",
+            plugin.name().bold(),
+            plugin.version().dimmed(),
+            status
+        );
 
         if let Some(desc) = &plugin.manifest.description {
             println!("    {}", desc.dimmed());
         }
 
-        println!("    Type: {} | Path: {}", plugin.plugin_type(), plugin.path.display());
+        println!(
+            "    Type: {} | Path: {}",
+            plugin.plugin_type(),
+            plugin.path.display()
+        );
 
         if let Some(author) = &plugin.manifest.author {
             println!("    Author: {}", author.dimmed());
@@ -56,20 +65,23 @@ pub fn show_plugin(name: &str) -> ColonyResult<()> {
 
     manager.discover_plugins()?;
 
-    let plugin = manager.get_plugin(name).ok_or_else(|| {
-        crate::error::ColonyError::Colony(format!("Plugin not found: {}", name))
-    })?;
+    let plugin = manager
+        .get_plugin(name)
+        .ok_or_else(|| crate::error::ColonyError::Colony(format!("Plugin not found: {}", name)))?;
 
     utils::header(&format!("Plugin: {}", plugin.name()));
     println!();
 
     println!("Version: {}", plugin.version());
     println!("Type: {}", plugin.plugin_type());
-    println!("Status: {}", if plugin.enabled {
-        "enabled".green()
-    } else {
-        "disabled".dimmed()
-    });
+    println!(
+        "Status: {}",
+        if plugin.enabled {
+            "enabled".green()
+        } else {
+            "disabled".dimmed()
+        }
+    );
     println!();
 
     if let Some(desc) = &plugin.manifest.description {
@@ -83,7 +95,10 @@ pub fn show_plugin(name: &str) -> ColonyResult<()> {
     }
 
     println!("Path: {}", plugin.path.display());
-    println!("Installed: {}", plugin.installed_at.format("%Y-%m-%d %H:%M:%S"));
+    println!(
+        "Installed: {}",
+        plugin.installed_at.format("%Y-%m-%d %H:%M:%S")
+    );
     println!();
 
     if let Some(hooks) = &plugin.manifest.hooks {

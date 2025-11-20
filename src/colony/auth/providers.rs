@@ -29,7 +29,9 @@ pub async fn test_api_key(api_key: &str) -> ColonyResult<()> {
         // 400 is OK - it means auth worked but request format might be wrong
         Ok(())
     } else if response.status().as_u16() == 401 {
-        Err(crate::error::ColonyError::Auth("Invalid API key".to_string()))
+        Err(crate::error::ColonyError::Auth(
+            "Invalid API key".to_string(),
+        ))
     } else {
         Err(crate::error::ColonyError::Auth(format!(
             "API test failed with status: {}",
@@ -49,9 +51,12 @@ pub async fn test_bedrock_access(region: &str, profile: &str) -> ColonyResult<()
         .args(&["--profile", profile])
         .output()
         .await
-        .map_err(|e| crate::error::ColonyError::Auth(format!(
-            "Failed to test AWS credentials: {}. Is AWS CLI installed?", e
-        )))?;
+        .map_err(|e| {
+            crate::error::ColonyError::Auth(format!(
+                "Failed to test AWS credentials: {}. Is AWS CLI installed?",
+                e
+            ))
+        })?;
 
     if output.status.success() {
         Ok(())

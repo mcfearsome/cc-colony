@@ -58,13 +58,9 @@ pub enum RelayToCliMessage {
     /// Heartbeat ping
     Ping,
     /// Connection accepted
-    Connected {
-        colony_id: String,
-    },
+    Connected { colony_id: String },
     /// Error occurred
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// Messages sent from Relay Service to Web Client
@@ -86,13 +82,9 @@ pub enum RelayToClientMessage {
         error: Option<String>,
     },
     /// Subscription confirmed
-    Subscribed {
-        colony_id: String,
-    },
+    Subscribed { colony_id: String },
     /// Error occurred
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// Command to execute on the colony
@@ -106,9 +98,7 @@ pub enum Command {
         message_type: String,
     },
     /// Broadcast a message to all agents
-    BroadcastMessage {
-        content: String,
-    },
+    BroadcastMessage { content: String },
     /// Create a new task
     CreateTask {
         title: String,
@@ -117,17 +107,11 @@ pub enum Command {
         priority: Option<String>,
     },
     /// Stop an agent
-    StopAgent {
-        agent_id: String,
-    },
+    StopAgent { agent_id: String },
     /// Start an agent
-    StartAgent {
-        agent_id: String,
-    },
+    StartAgent { agent_id: String },
     /// Restart an agent
-    RestartAgent {
-        agent_id: String,
-    },
+    RestartAgent { agent_id: String },
 }
 
 /// Agent state snapshot

@@ -1,7 +1,7 @@
 //! SQLite cache layer for fast state queries
 
-use crate::error::{ColonyError, ColonyResult};
 use crate::colony::state::types::{MemoryEntry, Task, TaskStatus, Workflow, WorkflowStatus};
+use crate::error::{ColonyError, ColonyResult};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use std::time::SystemTime;
@@ -21,8 +21,9 @@ impl StateCache {
             })?;
         }
 
-        let conn = Connection::open(path)
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to open cache database: {}", e)))?;
+        let conn = Connection::open(path).map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to open cache database: {}", e))
+        })?;
 
         let cache = Self { conn };
         cache.initialize_schema()?;
@@ -108,7 +109,9 @@ impl StateCache {
                 |row| row.get(0),
             )
             .optional()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to check cache metadata: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to check cache metadata: {}", e))
+            })?;
 
         Ok(cached_nanos.map_or(true, |cached| file_nanos > cached))
     }
@@ -125,7 +128,9 @@ impl StateCache {
                 "INSERT OR REPLACE INTO cache_metadata (schema_name, last_synced) VALUES (?, ?)",
                 params![schema_name, file_nanos],
             )
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to update cache metadata: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to update cache metadata: {}", e))
+            })?;
 
         Ok(())
     }
@@ -136,10 +141,9 @@ impl StateCache {
 
     /// Import tasks from JSONL into cache
     pub fn import_tasks(&mut self, tasks: &[Task]) -> ColonyResult<()> {
-        let tx = self
-            .conn
-            .transaction()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e)))?;
+        let tx = self.conn.transaction().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e))
+        })?;
 
         // Clear existing tasks
         tx.execute("DELETE FROM tasks", [])
@@ -167,8 +171,9 @@ impl StateCache {
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to insert task: {}", e)))?;
         }
 
-        tx.commit()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e)))?;
+        tx.commit().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e))
+        })?;
 
         Ok(())
     }
@@ -192,9 +197,11 @@ impl StateCache {
                         .with_timezone(&chrono::Utc),
                     assigned: row.get(5)?,
                     blockers: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
-                    completed: row
-                        .get::<_, Option<String>>(7)?
-                        .map(|s: String| chrono::DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&chrono::Utc)),
+                    completed: row.get::<_, Option<String>>(7)?.map(|s: String| {
+                        chrono::DateTime::parse_from_rfc3339(&s)
+                            .unwrap()
+                            .with_timezone(&chrono::Utc)
+                    }),
                     metadata: serde_json::from_str(&row.get::<_, String>(8)?).unwrap(),
                 })
             })
@@ -225,9 +232,11 @@ impl StateCache {
                         .with_timezone(&chrono::Utc),
                     assigned: row.get(5)?,
                     blockers: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
-                    completed: row
-                        .get::<_, Option<String>>(7)?
-                        .map(|s: String| chrono::DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&chrono::Utc)),
+                    completed: row.get::<_, Option<String>>(7)?.map(|s: String| {
+                        chrono::DateTime::parse_from_rfc3339(&s)
+                            .unwrap()
+                            .with_timezone(&chrono::Utc)
+                    }),
                     metadata: serde_json::from_str(&row.get::<_, String>(8)?).unwrap(),
                 })
             })
@@ -272,10 +281,9 @@ impl StateCache {
 
     /// Import workflows from JSONL into cache
     pub fn import_workflows(&mut self, workflows: &[Workflow]) -> ColonyResult<()> {
-        let tx = self
-            .conn
-            .transaction()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e)))?;
+        let tx = self.conn.transaction().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e))
+        })?;
 
         // Clear existing workflows
         tx.execute("DELETE FROM workflows", [])
@@ -303,8 +311,9 @@ impl StateCache {
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to insert workflow: {}", e)))?;
         }
 
-        tx.commit()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e)))?;
+        tx.commit().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e))
+        })?;
 
         Ok(())
     }
@@ -325,9 +334,11 @@ impl StateCache {
                     started: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
                         .unwrap()
                         .with_timezone(&chrono::Utc),
-                    completed: row
-                        .get::<_, Option<String>>(4)?
-                        .map(|s: String| chrono::DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&chrono::Utc)),
+                    completed: row.get::<_, Option<String>>(4)?.map(|s: String| {
+                        chrono::DateTime::parse_from_rfc3339(&s)
+                            .unwrap()
+                            .with_timezone(&chrono::Utc)
+                    }),
                     current_step: row.get(5)?,
                     steps: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
                     input: row
@@ -340,7 +351,9 @@ impl StateCache {
             })
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to query workflows: {}", e)))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to parse workflow row: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to parse workflow row: {}", e))
+            })?;
 
         Ok(workflows)
     }
@@ -362,9 +375,11 @@ impl StateCache {
                     started: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
                         .unwrap()
                         .with_timezone(&chrono::Utc),
-                    completed: row
-                        .get::<_, Option<String>>(4)?
-                        .map(|s: String| chrono::DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&chrono::Utc)),
+                    completed: row.get::<_, Option<String>>(4)?.map(|s: String| {
+                        chrono::DateTime::parse_from_rfc3339(&s)
+                            .unwrap()
+                            .with_timezone(&chrono::Utc)
+                    }),
                     current_step: row.get(5)?,
                     steps: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
                     input: row
@@ -377,7 +392,9 @@ impl StateCache {
             })
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to query workflows: {}", e)))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to parse workflow row: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to parse workflow row: {}", e))
+            })?;
 
         Ok(workflows)
     }
@@ -420,10 +437,9 @@ impl StateCache {
 
     /// Import memory entries from JSONL into cache
     pub fn import_memory(&mut self, entries: &[MemoryEntry]) -> ColonyResult<()> {
-        let tx = self
-            .conn
-            .transaction()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e)))?;
+        let tx = self.conn.transaction().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to start transaction: {}", e))
+        })?;
 
         // Clear existing memory
         tx.execute("DELETE FROM memory", [])
@@ -444,11 +460,14 @@ impl StateCache {
                     entry.content,
                 ],
             )
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to insert memory entry: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to insert memory entry: {}", e))
+            })?;
         }
 
-        tx.commit()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e)))?;
+        tx.commit().map_err(|e| {
+            ColonyError::InvalidConfig(format!("Failed to commit transaction: {}", e))
+        })?;
 
         Ok(())
     }
@@ -457,7 +476,9 @@ impl StateCache {
     pub fn get_memory(&self) -> ColonyResult<Vec<MemoryEntry>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT timestamp, type, key, value, content FROM memory ORDER BY timestamp DESC")
+            .prepare(
+                "SELECT timestamp, type, key, value, content FROM memory ORDER BY timestamp DESC",
+            )
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to prepare query: {}", e)))?;
 
         let entries = stmt
@@ -474,7 +495,9 @@ impl StateCache {
             })
             .map_err(|e| ColonyError::InvalidConfig(format!("Failed to query memory: {}", e)))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| ColonyError::InvalidConfig(format!("Failed to parse memory row: {}", e)))?;
+            .map_err(|e| {
+                ColonyError::InvalidConfig(format!("Failed to parse memory row: {}", e))
+            })?;
 
         Ok(entries)
     }
@@ -578,7 +601,9 @@ mod tests {
         assert_eq!(all_workflows.len(), 1);
 
         // Get workflows by status
-        let running_workflows = cache.get_workflows_by_status(WorkflowStatus::Running).unwrap();
+        let running_workflows = cache
+            .get_workflows_by_status(WorkflowStatus::Running)
+            .unwrap();
         assert_eq!(running_workflows.len(), 1);
 
         // Get workflow by ID

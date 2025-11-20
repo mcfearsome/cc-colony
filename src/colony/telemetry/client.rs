@@ -4,7 +4,7 @@ use crate::error::ColonyResult;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 
 /// Telemetry client for collecting and sending events
 #[derive(Clone)]
@@ -102,8 +102,7 @@ impl TelemetryClient {
         }
 
         let anonymous_id = self.anonymous_id().await;
-        let event =
-            TelemetryEvent::feature_used(self.session_id.clone(), anonymous_id, feature);
+        let event = TelemetryEvent::feature_used(self.session_id.clone(), anonymous_id, feature);
 
         self.track(event).await;
     }
@@ -178,7 +177,10 @@ impl TelemetryClient {
         // Send events to endpoint (gracefully handle failures)
         if let Err(e) = Self::send_events_http(&endpoint, events).await {
             // Log error but don't crash the CLI
-            eprintln!("Failed to send telemetry (this won't affect CLI functionality): {}", e);
+            eprintln!(
+                "Failed to send telemetry (this won't affect CLI functionality): {}",
+                e
+            );
         }
     }
 

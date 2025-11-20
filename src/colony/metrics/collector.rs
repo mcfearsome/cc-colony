@@ -125,11 +125,7 @@ impl MetricsCollector {
     }
 
     /// Get statistics for a metric over a time period
-    pub fn get_stats(
-        &self,
-        name: &str,
-        since: Option<DateTime<Utc>>,
-    ) -> Option<MetricStats> {
+    pub fn get_stats(&self, name: &str, since: Option<DateTime<Utc>>) -> Option<MetricStats> {
         let metric = self.get_metric(name)?;
         let since = since.unwrap_or_else(|| Utc::now() - Duration::hours(1));
 

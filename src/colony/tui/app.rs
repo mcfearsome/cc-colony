@@ -124,7 +124,9 @@ impl Dialog {
                 2 => "Args (comma-separated, optional):",
                 _ => "",
             },
-            Dialog::ConfigMenu => "Select option: 1=Add Agent, 2=Add Executor, 3=Add MCP Server, ESC=Cancel",
+            Dialog::ConfigMenu => {
+                "Select option: 1=Add Agent, 2=Add Executor, 3=Add MCP Server, ESC=Cancel"
+            }
         }
     }
 
@@ -367,7 +369,8 @@ impl App {
                 }
                 Dialog::CreateTask { step } => {
                     // Multi-step dialog
-                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.dialog_inputs
+                        .push(self.input_buffer.trim().to_string());
                     self.input_buffer.clear();
 
                     if *step + 1 < dialog.total_steps() {
@@ -382,7 +385,8 @@ impl App {
                 }
                 Dialog::SendMessage { step } => {
                     // Multi-step dialog
-                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.dialog_inputs
+                        .push(self.input_buffer.trim().to_string());
                     self.input_buffer.clear();
 
                     if *step + 1 < dialog.total_steps() {
@@ -421,7 +425,8 @@ impl App {
                 }
                 Dialog::AddAgent { step } => {
                     // Multi-step dialog
-                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.dialog_inputs
+                        .push(self.input_buffer.trim().to_string());
                     self.input_buffer.clear();
 
                     if *step + 1 < dialog.total_steps() {
@@ -436,7 +441,8 @@ impl App {
                 }
                 Dialog::AddExecutor { step } => {
                     // Multi-step dialog
-                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.dialog_inputs
+                        .push(self.input_buffer.trim().to_string());
                     self.input_buffer.clear();
 
                     if *step + 1 < dialog.total_steps() {
@@ -451,7 +457,8 @@ impl App {
                 }
                 Dialog::AddMcpServer { step } => {
                     // Multi-step dialog
-                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.dialog_inputs
+                        .push(self.input_buffer.trim().to_string());
                     self.input_buffer.clear();
 
                     if *step + 1 < dialog.total_steps() {
@@ -496,10 +503,7 @@ impl App {
                                 .arg(&tmux_msg)
                                 .output();
 
-                            self.set_status(
-                                &format!("Broadcast sent: {}", message),
-                                false,
-                            );
+                            self.set_status(&format!("Broadcast sent: {}", message), false);
                             self.refresh_data();
                         }
                         Err(e) => self.set_status(&format!("Error: {}", e), true),
@@ -513,7 +517,7 @@ impl App {
 
     /// Execute create task
     fn execute_create_task(&mut self) {
-        use crate::colony::{tasks::*, tasks::queue::TaskQueue, ColonyConfig, ColonyController};
+        use crate::colony::{tasks::queue::TaskQueue, tasks::*, ColonyConfig, ColonyController};
 
         if self.dialog_inputs.len() < 5 {
             self.set_status("Not enough inputs for task creation", true);
@@ -655,7 +659,13 @@ impl App {
                 config.agents.push(new_agent);
                 match config.save(config_path) {
                     Ok(_) => {
-                        self.set_status(&format!("Agent '{}' added successfully. Restart colony to activate.", agent_id), false);
+                        self.set_status(
+                            &format!(
+                                "Agent '{}' added successfully. Restart colony to activate.",
+                                agent_id
+                            ),
+                            false,
+                        );
                         self.refresh_data();
                     }
                     Err(e) => self.set_status(&format!("Error saving config: {}", e), true),
@@ -712,7 +722,11 @@ impl App {
         let executor = ExecutorConfig {
             enabled: true,
             agent_id: "mcp-executor".to_string(),
-            mcp_servers: if mcp_servers.is_empty() { None } else { Some(mcp_servers) },
+            mcp_servers: if mcp_servers.is_empty() {
+                None
+            } else {
+                Some(mcp_servers)
+            },
             languages: vec!["typescript".to_string(), "python".to_string()],
         };
 
@@ -723,7 +737,10 @@ impl App {
                 config.executor = Some(executor);
                 match config.save(config_path) {
                     Ok(_) => {
-                        self.set_status("Executor enabled successfully. Restart colony to activate.", false);
+                        self.set_status(
+                            "Executor enabled successfully. Restart colony to activate.",
+                            false,
+                        );
                         self.refresh_data();
                     }
                     Err(e) => self.set_status(&format!("Error saving config: {}", e), true),
@@ -750,10 +767,14 @@ impl App {
         if server_id == "?" {
             // Show available servers
             let servers = McpRegistry::all();
-            let server_list: Vec<String> = servers.iter()
+            let server_list: Vec<String> = servers
+                .iter()
                 .map(|s| format!("{}: {} - {}", s.id, s.name, s.description))
                 .collect();
-            self.set_status(&format!("Available MCP servers: {}", server_list.join(", ")), false);
+            self.set_status(
+                &format!("Available MCP servers: {}", server_list.join(", ")),
+                false,
+            );
             return;
         }
 
@@ -964,7 +985,8 @@ fn run_app<B: Backend>(
                 // In Compose or Instructions tab, handle text input differently
                 let action = if app.current_tab == Tab::Compose {
                     match (key.code, key.modifiers) {
-                        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
+                        (KeyCode::Char(c), KeyModifiers::NONE)
+                        | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
                         (KeyCode::Backspace, _) => Action::Backspace,
                         (KeyCode::Tab, _) => Action::NextField,
                         (KeyCode::Esc, _) => Action::Cancel,
@@ -977,7 +999,8 @@ fn run_app<B: Backend>(
                     }
                 } else if app.current_tab == Tab::Instructions {
                     match (key.code, key.modifiers) {
-                        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
+                        (KeyCode::Char(c), KeyModifiers::NONE)
+                        | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
                         (KeyCode::Backspace, _) => Action::Backspace,
                         (KeyCode::Enter, _) => Action::Confirm,
                         (KeyCode::Esc, _) => Action::Cancel,

@@ -33,16 +33,10 @@ pub fn create_worktree(agent_id: &str, base_path: &Path) -> ColonyResult<PathBuf
 
     // Also prune any stale worktree references from git's tracking
     // This handles cases where git still thinks a worktree exists but the directory is gone
-    let _ = Command::new("git")
-        .arg("worktree")
-        .arg("prune")
-        .output(); // Ignore errors, it's just cleanup
+    let _ = Command::new("git").arg("worktree").arg("prune").output(); // Ignore errors, it's just cleanup
 
     // Get the current commit SHA (works for both branches and detached HEAD)
-    let sha_output = Command::new("git")
-        .arg("rev-parse")
-        .arg("HEAD")
-        .output()?;
+    let sha_output = Command::new("git").arg("rev-parse").arg("HEAD").output()?;
 
     if !sha_output.status.success() {
         return Err(crate::error::ColonyError::Colony(format!(
@@ -90,19 +84,25 @@ pub fn create_worktree(agent_id: &str, base_path: &Path) -> ColonyResult<PathBuf
         let worktree_claude_dir = worktree_path.join(".claude");
 
         // Get absolute path to main repo's .claude directory
-        let main_claude_absolute = std::fs::canonicalize(main_claude_dir)
-            .map_err(|e| crate::error::ColonyError::Colony(format!(
-                "Failed to get absolute path for .claude: {}", e
-            )))?;
+        let main_claude_absolute = std::fs::canonicalize(main_claude_dir).map_err(|e| {
+            crate::error::ColonyError::Colony(format!(
+                "Failed to get absolute path for .claude: {}",
+                e
+            ))
+        })?;
 
         // Create symlink
         #[cfg(unix)]
         {
             if !worktree_claude_dir.exists() {
-                std::os::unix::fs::symlink(&main_claude_absolute, &worktree_claude_dir)
-                    .map_err(|e| crate::error::ColonyError::Colony(format!(
-                        "Failed to symlink .claude directory: {}", e
-                    )))?;
+                std::os::unix::fs::symlink(&main_claude_absolute, &worktree_claude_dir).map_err(
+                    |e| {
+                        crate::error::ColonyError::Colony(format!(
+                            "Failed to symlink .claude directory: {}",
+                            e
+                        ))
+                    },
+                )?;
 
                 crate::utils::info(&format!(
                     "Symlinked .claude directory: {} -> {}",

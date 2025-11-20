@@ -1,5 +1,5 @@
 mod collector;
 mod types;
 
-pub use collector::{MetricsCollector, MetricStats};
-pub use types::{Metric, MetricPoint, MetricType, standard_metrics};
+pub use collector::{MetricStats, MetricsCollector};
+pub use types::{standard_metrics, Metric, MetricPoint, MetricType};

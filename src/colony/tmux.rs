@@ -160,9 +160,9 @@ pub fn split_horizontal(session_name: &str, command: &str) -> ColonyResult<usize
         .arg("-h")
         .arg("-t")
         .arg(session_name)
-        .arg("-P")  // Print info about new pane
+        .arg("-P") // Print info about new pane
         .arg("-F")
-        .arg("#{pane_index}")  // Format: just print the pane index
+        .arg("#{pane_index}") // Format: just print the pane index
         .arg("sh")
         .arg("-c")
         .arg(command)
@@ -183,7 +183,8 @@ pub fn split_horizontal(session_name: &str, command: &str) -> ColonyResult<usize
     let pane_index = pane_index_str.parse::<usize>().map_err(|_| {
         crate::error::ColonyError::Colony(format!(
             "Failed to parse pane index: '{}' (length: {})",
-            pane_index_str, pane_index_str.len()
+            pane_index_str,
+            pane_index_str.len()
         ))
     })?;
 
@@ -199,9 +200,9 @@ pub fn split_vertical(session_name: &str, command: &str) -> ColonyResult<usize> 
         .arg("-v")
         .arg("-t")
         .arg(session_name)
-        .arg("-P")  // Print info about new pane
+        .arg("-P") // Print info about new pane
         .arg("-F")
-        .arg("#{pane_index}")  // Format: just print the pane index
+        .arg("#{pane_index}") // Format: just print the pane index
         .arg("sh")
         .arg("-c")
         .arg(command)
@@ -222,7 +223,8 @@ pub fn split_vertical(session_name: &str, command: &str) -> ColonyResult<usize> 
     let pane_index = pane_index_str.parse::<usize>().map_err(|_| {
         crate::error::ColonyError::Colony(format!(
             "Failed to parse pane index: '{}' (length: {})",
-            pane_index_str, pane_index_str.len()
+            pane_index_str,
+            pane_index_str.len()
         ))
     })?;
 
@@ -253,7 +255,12 @@ pub fn send_command_to_pane(session_name: &str, pane: usize, command: &str) -> C
 }
 
 /// Run a command in a specific window:pane (for multi-window sessions)
-pub fn send_command_to_window_pane(session_name: &str, window: usize, pane: usize, command: &str) -> ColonyResult<()> {
+pub fn send_command_to_window_pane(
+    session_name: &str,
+    window: usize,
+    pane: usize,
+    command: &str,
+) -> ColonyResult<()> {
     let target = format!("{}:{}.{}", session_name, window, pane);
 
     let output = Command::new(tmux_bin())
@@ -276,7 +283,12 @@ pub fn send_command_to_window_pane(session_name: &str, window: usize, pane: usiz
 }
 
 /// Set pane title for a specific window:pane (for multi-window sessions)
-pub fn set_window_pane_title(session_name: &str, window: usize, pane: usize, title: &str) -> ColonyResult<()> {
+pub fn set_window_pane_title(
+    session_name: &str,
+    window: usize,
+    pane: usize,
+    title: &str,
+) -> ColonyResult<()> {
     let target = format!("{}:{}.{}", session_name, window, pane);
 
     let output = Command::new(tmux_bin())
@@ -356,7 +368,13 @@ pub fn select_window_layout(session_name: &str, window: usize, layout: &str) -> 
 }
 
 /// Resize a pane by percentage
-pub fn resize_pane_percentage(session_name: &str, window: usize, pane: usize, width_pct: Option<u16>, height_pct: Option<u16>) -> ColonyResult<()> {
+pub fn resize_pane_percentage(
+    session_name: &str,
+    window: usize,
+    pane: usize,
+    width_pct: Option<u16>,
+    height_pct: Option<u16>,
+) -> ColonyResult<()> {
     let target = format!("{}:{}.{}", session_name, window, pane);
 
     if let Some(width) = width_pct {
@@ -397,7 +415,13 @@ pub fn resize_pane_percentage(session_name: &str, window: usize, pane: usize, wi
 }
 
 /// Swap two panes
-pub fn swap_panes(session_name: &str, src_window: usize, src_pane: usize, dst_window: usize, dst_pane: usize) -> ColonyResult<()> {
+pub fn swap_panes(
+    session_name: &str,
+    src_window: usize,
+    src_pane: usize,
+    dst_window: usize,
+    dst_pane: usize,
+) -> ColonyResult<()> {
     let src_target = format!("{}:{}.{}", session_name, src_window, src_pane);
     let dst_target = format!("{}:{}.{}", session_name, dst_window, dst_pane);
 
@@ -421,7 +445,11 @@ pub fn swap_panes(session_name: &str, src_window: usize, src_pane: usize, dst_wi
 
 /// Apply a custom layout string to a window
 /// Layout strings define exact pane geometry (get with: tmux list-windows -F "#{window_layout}")
-pub fn apply_custom_layout(session_name: &str, window: usize, layout_string: &str) -> ColonyResult<()> {
+pub fn apply_custom_layout(
+    session_name: &str,
+    window: usize,
+    layout_string: &str,
+) -> ColonyResult<()> {
     let target = format!("{}:{}", session_name, window);
 
     let output = Command::new(tmux_bin())
@@ -479,7 +507,7 @@ pub fn break_pane(session_name: &str, window: usize, pane: usize) -> ColonyResul
     // Now break the selected pane
     let output = Command::new(tmux_bin())
         .arg("break-pane")
-        .arg("-d")  // Don't switch to new window
+        .arg("-d") // Don't switch to new window
         .arg("-P")
         .arg("-F")
         .arg("#{window_index}")
@@ -504,7 +532,14 @@ pub fn break_pane(session_name: &str, window: usize, pane: usize) -> ColonyResul
 }
 
 /// Join a pane from one window into another window at a specific position
-pub fn join_pane_at(session_name: &str, src_window: usize, dst_window: usize, dst_pane: usize, vertical: bool, before: bool) -> ColonyResult<()> {
+pub fn join_pane_at(
+    session_name: &str,
+    src_window: usize,
+    dst_window: usize,
+    dst_pane: usize,
+    vertical: bool,
+    before: bool,
+) -> ColonyResult<()> {
     let src_target = format!("{}:{}", session_name, src_window);
     let dst_target = format!("{}:{}.{}", session_name, dst_window, dst_pane);
 
@@ -516,13 +551,13 @@ pub fn join_pane_at(session_name: &str, src_window: usize, dst_window: usize, ds
         .arg(&dst_target);
 
     if vertical {
-        cmd.arg("-v");  // Join vertically (above/below)
+        cmd.arg("-v"); // Join vertically (above/below)
     } else {
-        cmd.arg("-h");  // Join horizontally (left/right)
+        cmd.arg("-h"); // Join horizontally (left/right)
     }
 
     if before {
-        cmd.arg("-b");  // Join before target instead of after
+        cmd.arg("-b"); // Join before target instead of after
     }
 
     let output = cmd.output()?;

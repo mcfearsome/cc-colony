@@ -1,8 +1,8 @@
+use super::oauth::OAuthToken;
+use crate::error::ColonyResult;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use crate::error::ColonyResult;
-use super::oauth::OAuthToken;
 
 pub struct TokenStore {
     path: PathBuf,
@@ -50,8 +50,9 @@ impl TokenStore {
 
         let json = serde_json::to_string(token)?;
 
-        entry.set_password(&json)
-            .map_err(|e| crate::error::ColonyError::Auth(format!("Failed to save to keyring: {}", e)))?;
+        entry.set_password(&json).map_err(|e| {
+            crate::error::ColonyError::Auth(format!("Failed to save to keyring: {}", e))
+        })?;
 
         // Also save to file as backup (for cross-platform compatibility)
         let _ = self.save_to_file(token);

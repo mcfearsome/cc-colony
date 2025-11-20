@@ -45,8 +45,7 @@ pub async fn connect(url: Option<String>, token: Option<String>) -> ColonyResult
 
     // Get relay URL
     let relay_url = url.unwrap_or_else(|| {
-        std::env::var("COLONY_RELAY_URL")
-            .unwrap_or_else(|_| "wss://api.colony.sh".to_string())
+        std::env::var("COLONY_RELAY_URL").unwrap_or_else(|_| "wss://api.colony.sh".to_string())
     });
 
     // Get or prompt for auth token
@@ -68,7 +67,11 @@ pub async fn connect(url: Option<String>, token: Option<String>) -> ColonyResult
     };
 
     // Generate colony ID
-    let colony_id = format!("{}-{}", colony_name, uuid::Uuid::new_v4().to_string()[..8].to_string());
+    let colony_id = format!(
+        "{}-{}",
+        colony_name,
+        uuid::Uuid::new_v4().to_string()[..8].to_string()
+    );
 
     // Save relay config
     let relay_config_data = RelayConnectionConfig {

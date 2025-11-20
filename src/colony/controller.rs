@@ -22,7 +22,9 @@ impl ColonyController {
     pub fn new(config: ColonyConfig) -> ColonyResult<Self> {
         // Use absolute path for colony_root to ensure paths work correctly across tmux panes
         let colony_root = std::env::current_dir()
-            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e)))?
+            .map_err(|e| {
+                crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e))
+            })?
             .join(".colony");
 
         // Create colony directory if it doesn't exist

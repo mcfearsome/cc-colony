@@ -1,7 +1,7 @@
+use crate::error::{ColonyError, ColonyResult};
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use serde::{Deserialize, Serialize};
-use crate::error::{ColonyError, ColonyResult};
 
 pub struct OAuthFlow {
     client_id: String,
@@ -57,11 +57,15 @@ impl OAuthFlow {
 
         // 7. Verify state matches
         if returned_state != state {
-            return Err(ColonyError::Auth("State mismatch - possible CSRF attack".to_string()));
+            return Err(ColonyError::Auth(
+                "State mismatch - possible CSRF attack".to_string(),
+            ));
         }
 
         // 8. Exchange code for token
-        let token = self.exchange_code_for_token(&auth_code, &code_verifier).await?;
+        let token = self
+            .exchange_code_for_token(&auth_code, &code_verifier)
+            .await?;
 
         Ok(token)
     }
@@ -71,31 +75,32 @@ impl OAuthFlow {
         println!("   (Check your browser)");
         println!();
 
-        let (mut stream, _) = listener.accept()
+        let (mut stream, _) = listener
+            .accept()
             .map_err(|e| ColonyError::Auth(format!("Failed to accept connection: {}", e)))?;
 
         let mut buffer = [0; 2048];
-        let bytes_read = stream.read(&mut buffer)
+        let bytes_read = stream
+            .read(&mut buffer)
             .map_err(|e| ColonyError::Auth(format!("Failed to read request: {}", e)))?;
 
         let request = String::from_utf8_lossy(&buffer[..bytes_read]);
 
         // Parse authorization code from query params
-        let code = extract_query_param(&request, "code")
-            .ok_or_else(|| {
-                let error = extract_query_param(&request, "error");
-                let error_desc = extract_query_param(&request, "error_description");
+        let code = extract_query_param(&request, "code").ok_or_else(|| {
+            let error = extract_query_param(&request, "error");
+            let error_desc = extract_query_param(&request, "error_description");
 
-                if let Some(err) = error {
-                    ColonyError::Auth(format!(
-                        "Authentication failed: {} - {}",
-                        err,
-                        error_desc.unwrap_or_else(|| "No description".to_string())
-                    ))
-                } else {
-                    ColonyError::Auth("No authorization code received".to_string())
-                }
-            })?;
+            if let Some(err) = error {
+                ColonyError::Auth(format!(
+                    "Authentication failed: {} - {}",
+                    err,
+                    error_desc.unwrap_or_else(|| "No description".to_string())
+                ))
+            } else {
+                ColonyError::Auth("No authorization code received".to_string())
+            }
+        })?;
 
         let state = extract_query_param(&request, "state").unwrap_or_default();
 
@@ -152,16 +157,19 @@ impl OAuthFlow {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await
+            let error_text = response
+                .text()
+                .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(ColonyError::Auth(format!(
                 "Token exchange failed ({}): {}",
-                status,
-                error_text
+                status, error_text
             )));
         }
 
-        let mut token: OAuthToken = response.json().await
+        let mut token: OAuthToken = response
+            .json()
+            .await
             .map_err(|e| ColonyError::Auth(format!("Failed to parse token response: {}", e)))?;
 
         // Calculate expiration time
@@ -169,7 +177,8 @@ impl OAuthFlow {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs() + token.expires_in
+                .as_secs()
+                + token.expires_in,
         );
 
         Ok(token)
@@ -206,7 +215,8 @@ impl OAuthFlow {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs() + token.expires_in
+                .as_secs()
+                + token.expires_in,
         );
 
         Ok(token)
@@ -251,7 +261,10 @@ fn generate_pkce_challenge() -> (String, String) {
     let verifier: String = (0..64)
         .map(|_| {
             let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-            chars.chars().nth(rand::thread_rng().gen_range(0..chars.len())).unwrap()
+            chars
+                .chars()
+                .nth(rand::thread_rng().gen_range(0..chars.len()))
+                .unwrap()
         })
         .collect();
 
@@ -269,7 +282,10 @@ fn generate_random_state() -> String {
     (0..32)
         .map(|_| {
             let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            chars.chars().nth(rand::thread_rng().gen_range(0..chars.len())).unwrap()
+            chars
+                .chars()
+                .nth(rand::thread_rng().gen_range(0..chars.len()))
+                .unwrap()
         })
         .collect()
 }

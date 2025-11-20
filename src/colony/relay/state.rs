@@ -81,9 +81,7 @@ fn gather_task_states(colony_root: &Path) -> ColonyResult<Vec<TaskState>> {
 }
 
 /// Convert internal task status to relay protocol status
-fn convert_task_status(
-    status: &crate::colony::tasks::TaskStatus,
-) -> TaskStatus {
+fn convert_task_status(status: &crate::colony::tasks::TaskStatus) -> TaskStatus {
     match status {
         crate::colony::tasks::TaskStatus::Pending => TaskStatus::Pending,
         crate::colony::tasks::TaskStatus::Claimed => TaskStatus::Claimed,

@@ -268,7 +268,13 @@ impl ColonyData {
     }
 
     /// Load shared state tasks and workflows
-    fn load_shared_state(config: &ColonyConfig) -> (Vec<crate::colony::state::Task>, Vec<crate::colony::state::Workflow>, bool) {
+    fn load_shared_state(
+        config: &ColonyConfig,
+    ) -> (
+        Vec<crate::colony::state::Task>,
+        Vec<crate::colony::state::Workflow>,
+        bool,
+    ) {
         // Check if shared state is enabled
         if config.shared_state.is_none() {
             return (Vec::new(), Vec::new(), false);
@@ -300,16 +306,16 @@ impl ColonyData {
 
     /// Load a JSONL file
     fn load_jsonl_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
 
         let mut items = Vec::new();
         for line in content.lines() {
             if line.trim().is_empty() {
                 continue;
             }
-            let item: T = serde_json::from_str(line)
-                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+            let item: T =
+                serde_json::from_str(line).map_err(|e| format!("Failed to parse JSON: {}", e))?;
             items.push(item);
         }
 

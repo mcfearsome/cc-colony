@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::colony::config::{AgentConfig, ColonyConfig, ExecutorConfig, McpServerConfig};
 use crate::colony::controller::ColonyController;
@@ -89,11 +89,8 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
 
     // Custom setup mode (original wizard)
     // Ask how many agents to create
-    let num_agents = utils::prompt_number(
-        "How many agents do you want to create?",
-        Some(2),
-    )
-    .unwrap_or(2);
+    let num_agents =
+        utils::prompt_number("How many agents do you want to create?", Some(2)).unwrap_or(2);
 
     if num_agents == 0 {
         return Err(crate::error::ColonyError::Colony(
@@ -105,11 +102,36 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
 
     // Template options
     let template_options = vec![
-        ("code-reviewer", "Code Reviewer - Quality and best practices review", "Code Reviewer", "Review code for quality, best practices, and potential issues"),
-        ("security-auditor", "Security Auditor - OWASP Top 10 security scanning", "Security Auditor", "Identify and document security vulnerabilities"),
-        ("test-engineer", "Test Engineer - Automated testing and QA", "Test Engineer", "Write comprehensive tests and improve test coverage"),
-        ("documentation-writer", "Documentation Writer - Technical documentation", "Documentation Writer", "Write and maintain technical documentation"),
-        ("data-analyst", "Data Analyst - Data analysis and insights", "Data Analyst", "Analyze data and generate insights"),
+        (
+            "code-reviewer",
+            "Code Reviewer - Quality and best practices review",
+            "Code Reviewer",
+            "Review code for quality, best practices, and potential issues",
+        ),
+        (
+            "security-auditor",
+            "Security Auditor - OWASP Top 10 security scanning",
+            "Security Auditor",
+            "Identify and document security vulnerabilities",
+        ),
+        (
+            "test-engineer",
+            "Test Engineer - Automated testing and QA",
+            "Test Engineer",
+            "Write comprehensive tests and improve test coverage",
+        ),
+        (
+            "documentation-writer",
+            "Documentation Writer - Technical documentation",
+            "Documentation Writer",
+            "Write and maintain technical documentation",
+        ),
+        (
+            "data-analyst",
+            "Data Analyst - Data analysis and insights",
+            "Data Analyst",
+            "Analyze data and generate insights",
+        ),
     ];
 
     let mut template_choices: Vec<String> = template_options
@@ -126,11 +148,8 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
 
         // Agent ID
         let default_id = format!("agent-{}", i + 1);
-        let agent_id = utils::prompt(
-            "Agent ID (unique identifier)",
-            Some(&default_id),
-        )
-        .unwrap_or(default_id);
+        let agent_id =
+            utils::prompt("Agent ID (unique identifier)", Some(&default_id)).unwrap_or(default_id);
 
         // Ask if they want to use a template
         let template_choice = utils::select(
@@ -164,7 +183,8 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
                 };
 
                 // Ask if they want to add custom startup prompt
-                let add_prompt = utils::confirm("Add a custom startup prompt? (will override template)");
+                let add_prompt =
+                    utils::confirm("Add a custom startup prompt? (will override template)");
                 let prompt = if add_prompt {
                     utils::prompt("Custom startup prompt", None)
                 } else {
@@ -187,10 +207,7 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
                 )
                 .unwrap_or_else(|| "General software development".to_string());
 
-                let prompt = utils::prompt(
-                    "Startup prompt (optional, press Enter to skip)",
-                    None,
-                );
+                let prompt = utils::prompt("Startup prompt (optional, press Enter to skip)", None);
 
                 (role, focus, prompt)
             }
@@ -205,8 +222,7 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
                 "claude-opus-4-20250514 (most capable)".to_string(),
                 "claude-3-5-haiku-20241022 (fast and efficient)".to_string(),
             ];
-            let model_idx = utils::select("Select Claude model", &model_options)
-                .unwrap_or(0);
+            let model_idx = utils::select("Select Claude model", &model_options).unwrap_or(0);
 
             match model_idx {
                 0 => "claude-sonnet-4-20250514",
@@ -236,7 +252,8 @@ fn run_wizard() -> ColonyResult<ColonyConfig> {
 
     // Colony name (optional)
     println!();
-    let set_name = utils::confirm("Give this colony a name? (optional, uses directory name if not set)");
+    let set_name =
+        utils::confirm("Give this colony a name? (optional, uses directory name if not set)");
     let name = if set_name {
         utils::prompt("Colony name", None)
     } else {
@@ -301,8 +318,8 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
         "General Development - Mixed or general software development".to_string(),
     ];
 
-    let project_type = utils::select("What type of project are you working on?", &project_types)
-        .unwrap_or(4);
+    let project_type =
+        utils::select("What type of project are you working on?", &project_types).unwrap_or(4);
 
     // Configure agents based on project type
     let (agents, default_mcp_servers) = match project_type {
@@ -349,7 +366,8 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
                     AgentConfig {
                         id: "cli-dev".to_string(),
                         role: "CLI Developer".to_string(),
-                        focus: "Command-line interface, argument parsing, and core functionality".to_string(),
+                        focus: "Command-line interface, argument parsing, and core functionality"
+                            .to_string(),
                         model: "claude-sonnet-4-20250514".to_string(),
                         directory: None,
                         worktree: Some("cli".to_string()),
@@ -417,22 +435,20 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
         3 => {
             // Automation
             (
-                vec![
-                    AgentConfig {
-                        id: "automation".to_string(),
-                        role: "Automation Engineer".to_string(),
-                        focus: "Scripts, bots, and automated workflows".to_string(),
-                        model: "claude-sonnet-4-20250514".to_string(),
-                        directory: None,
-                        worktree: Some("automation".to_string()),
-                        env: None,
-                        mcp_servers: None,
-                        instructions: None,
-                        startup_prompt: None,
-                        capabilities: None,
-                        nudge: None,
-                    },
-                ],
+                vec![AgentConfig {
+                    id: "automation".to_string(),
+                    role: "Automation Engineer".to_string(),
+                    focus: "Scripts, bots, and automated workflows".to_string(),
+                    model: "claude-sonnet-4-20250514".to_string(),
+                    directory: None,
+                    worktree: Some("automation".to_string()),
+                    env: None,
+                    mcp_servers: None,
+                    instructions: None,
+                    startup_prompt: None,
+                    capabilities: None,
+                    nudge: None,
+                }],
                 McpRegistry::for_automation(),
             )
         }
@@ -483,7 +499,12 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
         println!();
         println!("{}", "Recommended MCP Servers for Executor:".bold());
         for (i, server) in default_mcp_servers.iter().enumerate() {
-            println!("  {}. {} - {}", i + 1, server.name.cyan(), server.description);
+            println!(
+                "  {}. {} - {}",
+                i + 1,
+                server.name.cyan(),
+                server.description
+            );
         }
         println!();
 
@@ -491,7 +512,8 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
 
         let mcp_servers = if use_recommended {
             let mut servers = HashMap::new();
-            let server_ids: Vec<String> = default_mcp_servers.iter().map(|s| s.id.clone()).collect();
+            let server_ids: Vec<String> =
+                default_mcp_servers.iter().map(|s| s.id.clone()).collect();
 
             // Check for overlaps and show warnings
             let warnings = McpRegistry::detect_overlaps(&server_ids);

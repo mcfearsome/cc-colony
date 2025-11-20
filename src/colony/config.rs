@@ -261,8 +261,9 @@ impl ExecutorConfig {
             settings["mcpServers"] = json!(mcp_config);
         }
 
-        let json_str = serde_json::to_string_pretty(&settings)
-            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e)))?;
+        let json_str = serde_json::to_string_pretty(&settings).map_err(|e| {
+            crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e))
+        })?;
 
         Ok(json_str)
     }
@@ -332,8 +333,9 @@ impl AgentConfig {
             settings["mcpServers"] = json!(mcp_config);
         }
 
-        let json_str = serde_json::to_string_pretty(&settings)
-            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e)))?;
+        let json_str = serde_json::to_string_pretty(&settings).map_err(|e| {
+            crate::error::ColonyError::Colony(format!("Failed to serialize settings: {}", e))
+        })?;
 
         Ok(json_str)
     }
@@ -344,7 +346,10 @@ impl AgentConfig {
     }
 
     /// Get resolved capabilities (agent-specific merged with global)
-    pub fn resolved_capabilities(&self, global: Option<&CapabilitiesConfig>) -> Option<CapabilitiesConfig> {
+    pub fn resolved_capabilities(
+        &self,
+        global: Option<&CapabilitiesConfig>,
+    ) -> Option<CapabilitiesConfig> {
         match (&self.capabilities, global) {
             (Some(agent_caps), Some(global_caps)) => Some(agent_caps.merge_with(Some(global_caps))),
             (Some(agent_caps), None) => Some(agent_caps.clone()),
@@ -381,11 +386,11 @@ impl ColonyConfig {
     /// Create a default colony configuration with example agents
     pub fn default() -> Self {
         ColonyConfig {
-            name: None, // Will default to directory name
-            repository: None, // No repository config by default
-            executor: None, // Executor disabled by default
-            shared_state: None, // No shared state config by default
-            auth: Default::default(), // Default auth (API key from env)
+            name: None,                    // Will default to directory name
+            repository: None,              // No repository config by default
+            executor: None,                // Executor disabled by default
+            shared_state: None,            // No shared state config by default
+            auth: Default::default(),      // Default auth (API key from env)
             telemetry: Default::default(), // Telemetry disabled by default (opt-in)
             capabilities: None,
             layout: None,
@@ -395,12 +400,12 @@ impl ColonyConfig {
                     role: "Backend Engineer".to_string(),
                     focus: "API endpoints and server logic".to_string(),
                     model: "claude-opus-4-20250514".to_string(),
-                    directory: None,       // Uses Git worktree
-                    worktree: None,        // Uses agent ID as worktree name
-                    env: None,             // No custom environment variables
+                    directory: None, // Uses Git worktree
+                    worktree: None,  // Uses agent ID as worktree name
+                    env: None,       // No custom environment variables
                     mcp_servers: None,
-                    instructions: None,    // No custom instructions
-                    startup_prompt: None,  // Use default generated prompt
+                    instructions: None,   // No custom instructions
+                    startup_prompt: None, // Use default generated prompt
                     capabilities: None,
                     nudge: None,
                 },
@@ -409,12 +414,12 @@ impl ColonyConfig {
                     role: "Frontend Engineer".to_string(),
                     focus: "React components and UI implementation".to_string(),
                     model: "claude-sonnet-4-20250514".to_string(),
-                    directory: None,       // Uses Git worktree
-                    worktree: None,        // Uses agent ID as worktree name
-                    env: None,             // No custom environment variables
+                    directory: None, // Uses Git worktree
+                    worktree: None,  // Uses agent ID as worktree name
+                    env: None,       // No custom environment variables
                     mcp_servers: None,
-                    instructions: None,    // No custom instructions
-                    startup_prompt: None,  // Use default generated prompt
+                    instructions: None,   // No custom instructions
+                    startup_prompt: None, // Use default generated prompt
                     capabilities: None,
                     nudge: None,
                 },

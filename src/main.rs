@@ -751,7 +751,9 @@ async fn run() -> ColonyResult<()> {
         },
         Commands::Workflow { command } => match command {
             WorkflowOrchestratorCommands::List => colony::workflow_cmd::list_workflows(),
-            WorkflowOrchestratorCommands::Show { name } => colony::workflow_cmd::show_workflow(&name),
+            WorkflowOrchestratorCommands::Show { name } => {
+                colony::workflow_cmd::show_workflow(&name)
+            }
             WorkflowOrchestratorCommands::Run { name, input } => {
                 colony::workflow_cmd::run_workflow(&name, input.as_deref())
             }

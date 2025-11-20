@@ -37,7 +37,11 @@ pub fn list_workflows() -> ColonyResult<()> {
             None => "manual".to_string(),
         };
 
-        println!("  {} {}", workflow.name.bold(), format!("({})", trigger_info).dimmed());
+        println!(
+            "  {} {}",
+            workflow.name.bold(),
+            format!("({})", trigger_info).dimmed()
+        );
 
         if let Some(desc) = &workflow.description {
             println!("    {}", desc.dimmed());
@@ -82,7 +86,10 @@ pub fn show_workflow(name: &str) -> ColonyResult<()> {
     // Show input schema if defined
     if let Some(input) = &workflow.input {
         println!("Input Schema:");
-        println!("{}", serde_json::to_string_pretty(&input.schema).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&input.schema).unwrap_or_default()
+        );
         println!();
     }
 
@@ -125,7 +132,10 @@ pub fn show_workflow(name: &str) -> ColonyResult<()> {
     if let Some(handlers) = &workflow.error_handling {
         println!("Error Handlers:");
         for handler in handlers {
-            println!("  {}: {} ({})", handler.step, handler.instructions, handler.agent);
+            println!(
+                "  {}: {} ({})",
+                handler.step, handler.instructions, handler.agent
+            );
         }
         println!();
     }
@@ -143,9 +153,8 @@ pub fn run_workflow(name: &str, input_json: Option<&str>) -> ColonyResult<()> {
 
     // Parse input if provided
     let input = if let Some(input_str) = input_json {
-        serde_json::from_str(input_str).map_err(|e| {
-            crate::error::ColonyError::Colony(format!("Invalid input JSON: {}", e))
-        })?
+        serde_json::from_str(input_str)
+            .map_err(|e| crate::error::ColonyError::Colony(format!("Invalid input JSON: {}", e)))?
     } else {
         serde_json::Value::Null
     };
@@ -192,7 +201,10 @@ pub fn show_run_status(run_id: &str) -> ColonyResult<()> {
 
     println!("Workflow: {}", run.workflow_name);
     println!("Status: {}", format_status(&run.status));
-    println!("Started: {}", run.started_at.format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "Started: {}",
+        run.started_at.format("%Y-%m-%d %H:%M:%S UTC")
+    );
 
     if let Some(completed) = run.completed_at {
         println!("Completed: {}", completed.format("%Y-%m-%d %H:%M:%S UTC"));
@@ -205,7 +217,10 @@ pub fn show_run_status(run_id: &str) -> ColonyResult<()> {
     if let Some(input) = &run.input {
         if !input.is_null() {
             println!("Input:");
-            println!("{}", serde_json::to_string_pretty(input).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(input).unwrap_or_default()
+            );
             println!();
         }
     }
@@ -224,7 +239,12 @@ pub fn show_run_status(run_id: &str) -> ColonyResult<()> {
                 crate::colony::workflow::StepStatus::Retrying => "↻".yellow().to_string(),
             };
 
-            println!("  {} {} ({})", status_icon, step.step_name.bold(), step.agent);
+            println!(
+                "  {} {} ({})",
+                status_icon,
+                step.step_name.bold(),
+                step.agent
+            );
 
             if let Some(started) = step.started_at {
                 println!("    Started: {}", started.format("%H:%M:%S"));
@@ -306,7 +326,10 @@ pub fn cancel_run(run_id: &str) -> ColonyResult<()> {
 
     let mut run = storage.load_run(run_id)?;
 
-    if !matches!(run.status, WorkflowRunStatus::Pending | WorkflowRunStatus::Running) {
+    if !matches!(
+        run.status,
+        WorkflowRunStatus::Pending | WorkflowRunStatus::Running
+    ) {
         return Err(crate::error::ColonyError::Colony(format!(
             "Cannot cancel workflow run with status '{}'",
             run.status

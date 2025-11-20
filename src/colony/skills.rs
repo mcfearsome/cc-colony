@@ -12,9 +12,7 @@ const WEBVIEW_DASHBOARD_MD: &str = include_str!("../../.claude/skills/webview-da
 /// Get the user's home directory
 fn get_home_dir() -> ColonyResult<PathBuf> {
     dirs::home_dir().ok_or_else(|| {
-        crate::error::ColonyError::Colony(
-            "Could not determine home directory".to_string()
-        )
+        crate::error::ColonyError::Colony("Could not determine home directory".to_string())
     })
 }
 

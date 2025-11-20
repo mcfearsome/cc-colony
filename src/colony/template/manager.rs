@@ -78,7 +78,11 @@ impl TemplateManager {
     }
 
     /// Load a single template from a directory
-    fn load_template(&self, template_dir: &Path, is_builtin: bool) -> ColonyResult<TemplateMetadata> {
+    fn load_template(
+        &self,
+        template_dir: &Path,
+        is_builtin: bool,
+    ) -> ColonyResult<TemplateMetadata> {
         let manifest_path = template_dir.join("template.yaml");
 
         if !manifest_path.exists() {
@@ -88,9 +92,8 @@ impl TemplateManager {
             )));
         }
 
-        let content = fs::read_to_string(&manifest_path).map_err(|e| {
-            ColonyError::Colony(format!("Failed to read template manifest: {}", e))
-        })?;
+        let content = fs::read_to_string(&manifest_path)
+            .map_err(|e| ColonyError::Colony(format!("Failed to read template manifest: {}", e)))?;
 
         let template: AgentTemplate = serde_yaml::from_str(&content).map_err(|e| {
             ColonyError::Colony(format!("Failed to parse template manifest: {}", e))
@@ -117,17 +120,11 @@ impl TemplateManager {
 
     /// List builtin templates
     pub fn list_builtin_templates(&self) -> Vec<&TemplateMetadata> {
-        self.templates
-            .values()
-            .filter(|t| t.is_builtin)
-            .collect()
+        self.templates.values().filter(|t| t.is_builtin).collect()
     }
 
     /// List user templates
     pub fn list_user_templates(&self) -> Vec<&TemplateMetadata> {
-        self.templates
-            .values()
-            .filter(|t| !t.is_builtin)
-            .collect()
+        self.templates.values().filter(|t| !t.is_builtin).collect()
     }
 }

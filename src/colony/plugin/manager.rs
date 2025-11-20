@@ -40,9 +40,8 @@ impl PluginManager {
             return Ok(());
         }
 
-        let entries = fs::read_dir(&self.plugins_dir).map_err(|e| {
-            ColonyError::Colony(format!("Failed to read plugins directory: {}", e))
-        })?;
+        let entries = fs::read_dir(&self.plugins_dir)
+            .map_err(|e| ColonyError::Colony(format!("Failed to read plugins directory: {}", e)))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -67,13 +66,11 @@ impl PluginManager {
             )));
         }
 
-        let content = fs::read_to_string(&manifest_path).map_err(|e| {
-            ColonyError::Colony(format!("Failed to read plugin manifest: {}", e))
-        })?;
+        let content = fs::read_to_string(&manifest_path)
+            .map_err(|e| ColonyError::Colony(format!("Failed to read plugin manifest: {}", e)))?;
 
-        let manifest: PluginManifest = serde_yaml::from_str(&content).map_err(|e| {
-            ColonyError::Colony(format!("Failed to parse plugin manifest: {}", e))
-        })?;
+        let manifest: PluginManifest = serde_yaml::from_str(&content)
+            .map_err(|e| ColonyError::Colony(format!("Failed to parse plugin manifest: {}", e)))?;
 
         Ok(Plugin::new(manifest, plugin_dir.to_path_buf()))
     }
@@ -117,9 +114,6 @@ impl PluginManager {
 
     /// Get enabled plugins
     pub fn enabled_plugins(&self) -> Vec<&Plugin> {
-        self.plugins
-            .values()
-            .filter(|p| p.enabled)
-            .collect()
+        self.plugins.values().filter(|p| p.enabled).collect()
     }
 }

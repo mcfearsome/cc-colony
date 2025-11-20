@@ -1,9 +1,7 @@
 //! Git-backed state backend
 
+use crate::colony::state::{cache::StateCache, jsonl, state_config::SharedStateConfig, types::*};
 use crate::error::{ColonyError, ColonyResult};
-use crate::colony::state::{
-    cache::StateCache, jsonl, state_config::SharedStateConfig, types::*,
-};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
@@ -107,10 +105,9 @@ impl GitBackedState {
 
     /// Get the path to a schema file
     fn schema_file_path(&self, schema_name: &str) -> ColonyResult<PathBuf> {
-        let schema = self
-            .config
-            .get_schema(schema_name)
-            .ok_or_else(|| ColonyError::InvalidConfig(format!("Unknown schema: {}", schema_name)))?;
+        let schema = self.config.get_schema(schema_name).ok_or_else(|| {
+            ColonyError::InvalidConfig(format!("Unknown schema: {}", schema_name))
+        })?;
 
         Ok(self.state_dir().join(&schema.file))
     }
@@ -182,10 +179,9 @@ impl GitBackedState {
         let state_dir = self.state_dir();
 
         // Add file
-        let schema = self
-            .config
-            .get_schema(schema_name)
-            .ok_or_else(|| ColonyError::InvalidConfig(format!("Unknown schema: {}", schema_name)))?;
+        let schema = self.config.get_schema(schema_name).ok_or_else(|| {
+            ColonyError::InvalidConfig(format!("Unknown schema: {}", schema_name))
+        })?;
 
         Command::new("git")
             .args(["add", &schema.file])

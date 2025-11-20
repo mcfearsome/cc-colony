@@ -2,7 +2,6 @@
 ///
 /// This module provides a lightweight native window with full web capabilities
 /// for visualizing colony data, creating tasks, and managing agents.
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -163,10 +162,7 @@ impl DashboardStats {
         Self {
             total_tasks: tasks.len(),
             pending_tasks: tasks.iter().filter(|t| t.status == "pending").count(),
-            in_progress_tasks: tasks
-                .iter()
-                .filter(|t| t.status == "in-progress")
-                .count(),
+            in_progress_tasks: tasks.iter().filter(|t| t.status == "in-progress").count(),
             completed_tasks: tasks.iter().filter(|t| t.status == "completed").count(),
             blocked_tasks: tasks.iter().filter(|t| t.status == "blocked").count(),
             total_agents: agents.len(),

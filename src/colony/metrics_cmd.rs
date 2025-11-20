@@ -71,7 +71,10 @@ pub fn list_metrics() -> ColonyResult<()> {
         println!();
     }
 
-    println!("Use {} to see detailed statistics", "'colony metrics show <name>'".dimmed());
+    println!(
+        "Use {} to see detailed statistics",
+        "'colony metrics show <name>'".dimmed()
+    );
 
     Ok(())
 }
@@ -105,9 +108,9 @@ fn print_metric_summary(metric: &crate::colony::metrics::Metric) {
 /// Show detailed statistics for a specific metric
 pub fn show_metric(name: &str, hours: Option<usize>) -> ColonyResult<()> {
     let collector = get_or_init_collector();
-    let metric = collector.get_metric(name).ok_or_else(|| {
-        crate::error::ColonyError::Colony(format!("Metric not found: {}", name))
-    })?;
+    let metric = collector
+        .get_metric(name)
+        .ok_or_else(|| crate::error::ColonyError::Colony(format!("Metric not found: {}", name)))?;
 
     let hours = hours.unwrap_or(1);
     let since = Utc::now() - Duration::hours(hours as i64);

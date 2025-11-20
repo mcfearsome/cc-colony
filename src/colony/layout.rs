@@ -1,7 +1,7 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::process::Command;
-use serde::Serialize;
 
 use crate::colony::ColonyController;
 use crate::error::ColonyResult;
@@ -31,11 +31,17 @@ pub fn create_session_with_moxide(
 
     // Check if custom layout is configured
     if let Some(layout_config) = &config.layout {
-        eprintln!("DEBUG: Found layout config, type={}, windows={}",
-            layout_config.layout_type, layout_config.windows.len());
+        eprintln!(
+            "DEBUG: Found layout config, type={}, windows={}",
+            layout_config.layout_type,
+            layout_config.windows.len()
+        );
 
         if layout_config.layout_type == "custom" && !layout_config.windows.is_empty() {
-            crate::utils::info(&format!("Using custom layout with {} windows", layout_config.windows.len()));
+            crate::utils::info(&format!(
+                "Using custom layout with {} windows",
+                layout_config.windows.len()
+            ));
             return create_custom_layout_with_moxide(session_name, controller, layout_config);
         }
     } else {
@@ -124,29 +130,36 @@ fn create_custom_layout_with_moxide(
     };
 
     // Write moxide template to ~/.config/moxide/templates/
-    let template_yaml = serde_yaml::to_string(&template)
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize moxide template: {}", e)))?;
+    let template_yaml = serde_yaml::to_string(&template).map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to serialize moxide template: {}", e))
+    })?;
 
-    let home_dir = dirs::home_dir()
-        .ok_or_else(|| crate::error::ColonyError::Colony("Failed to get home directory".to_string()))?;
+    let home_dir = dirs::home_dir().ok_or_else(|| {
+        crate::error::ColonyError::Colony("Failed to get home directory".to_string())
+    })?;
 
     let templates_dir = home_dir.join(".config/moxide/templates");
-    fs::create_dir_all(&templates_dir)
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to create moxide templates dir: {}", e)))?;
+    fs::create_dir_all(&templates_dir).map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to create moxide templates dir: {}", e))
+    })?;
 
     let template_filename = format!("colony-{}", session_name);
     let template_path = templates_dir.join(format!("{}.yaml", template_filename));
 
-    fs::write(&template_path, template_yaml)
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to write moxide template: {}", e)))?;
+    fs::write(&template_path, template_yaml).map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to write moxide template: {}", e))
+    })?;
 
-    crate::utils::info(&format!("Generated moxide template: {}", template_path.display()));
+    crate::utils::info(&format!(
+        "Generated moxide template: {}",
+        template_path.display()
+    ));
 
     // Create session with moxide (references template by its name field, not filename)
     let output = Command::new("moxide")
         .arg("template")
         .arg("start")
-        .arg(session_name)  // Use the name from template YAML
+        .arg(session_name) // Use the name from template YAML
         .arg("--detached")
         .arg("--name")
         .arg(session_name)
@@ -160,7 +173,10 @@ fn create_custom_layout_with_moxide(
         )));
     }
 
-    crate::utils::success(&format!("Created tmux session '{}' with moxide", session_name));
+    crate::utils::success(&format!(
+        "Created tmux session '{}' with moxide",
+        session_name
+    ));
 
     // Apply layout refinements to match exact specifications
     refine_layout(session_name, layout_config, &pane_map)?;
@@ -235,9 +251,21 @@ fn refine_layout(
                             if let Some((win, pane_idx)) = pane_map.get(id.as_str()) {
                                 // Apply size (heuristic: if > 50%, it's width, else height)
                                 if percentage > 50 {
-                                    let _ = tmux::resize_pane_percentage(session_name, *win, *pane_idx, Some(percentage), None);
+                                    let _ = tmux::resize_pane_percentage(
+                                        session_name,
+                                        *win,
+                                        *pane_idx,
+                                        Some(percentage),
+                                        None,
+                                    );
                                 } else {
-                                    let _ = tmux::resize_pane_percentage(session_name, *win, *pane_idx, None, Some(percentage));
+                                    let _ = tmux::resize_pane_percentage(
+                                        session_name,
+                                        *win,
+                                        *pane_idx,
+                                        None,
+                                        Some(percentage),
+                                    );
                                 }
                             }
                         }
@@ -251,7 +279,10 @@ fn refine_layout(
 }
 
 /// Infer appropriate tmux layout from pane configuration
-fn infer_tmux_layout(window_name: &str, panes: &[crate::colony::config::PaneConfig]) -> Option<String> {
+fn infer_tmux_layout(
+    window_name: &str,
+    panes: &[crate::colony::config::PaneConfig],
+) -> Option<String> {
     // Special case for main-dev window: use main-horizontal for bottom-spanning TUI
     if window_name == "main-dev" && panes.len() == 4 {
         // 4 panes: nvim, agent, executor, TUI

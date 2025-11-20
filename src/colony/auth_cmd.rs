@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
-use crate::colony::auth::{AuthProvider, oauth::OAuthFlow, token_store::TokenStore, providers};
+use crate::colony::auth::{oauth::OAuthFlow, providers, token_store::TokenStore, AuthProvider};
 use crate::colony::config::ColonyConfig;
 use crate::error::ColonyResult;
 use crate::utils;
@@ -80,7 +80,7 @@ pub async fn login_api_key(api_key: Option<String>) -> ColonyResult<()> {
     // Validate API key format
     if !key.starts_with("sk-ant-") {
         return Err(crate::error::ColonyError::Auth(
-            "Invalid API key format. Should start with 'sk-ant-'".to_string()
+            "Invalid API key format. Should start with 'sk-ant-'".to_string(),
         ));
     }
 
@@ -103,10 +103,7 @@ pub async fn login_api_key(api_key: Option<String>) -> ColonyResult<()> {
 }
 
 /// Configure Bedrock authentication
-pub async fn login_bedrock(
-    region: Option<String>,
-    profile: Option<String>,
-) -> ColonyResult<()> {
+pub async fn login_bedrock(region: Option<String>, profile: Option<String>) -> ColonyResult<()> {
     println!("🔐 Colony Authentication - AWS Bedrock\n");
 
     let region = region.unwrap_or_else(|| "us-east-1".to_string());
@@ -161,9 +158,14 @@ pub async fn status() -> ColonyResult<()> {
         AuthProvider::Bedrock { region, profile } => {
             println!("Provider: AWS Bedrock");
             println!("Region: {}", region);
-            println!("Profile: {}", profile.as_ref().unwrap_or(&"default".to_string()));
+            println!(
+                "Profile: {}",
+                profile.as_ref().unwrap_or(&"default".to_string())
+            );
 
-            match providers::test_bedrock_access(region, profile.as_deref().unwrap_or("default")).await {
+            match providers::test_bedrock_access(region, profile.as_deref().unwrap_or("default"))
+                .await
+            {
                 Ok(_) => println!("Status: ✅ Connected"),
                 Err(e) => println!("Status: ❌ Cannot connect - {}", e),
             }
@@ -255,7 +257,7 @@ pub async fn refresh() -> ColonyResult<()> {
     let config_path = Path::new("colony.yml");
     if !config_path.exists() {
         return Err(crate::error::ColonyError::Auth(
-            "No colony.yml found".to_string()
+            "No colony.yml found".to_string(),
         ));
     }
 
@@ -264,10 +266,11 @@ pub async fn refresh() -> ColonyResult<()> {
     match &config.auth.provider {
         AuthProvider::AnthropicOAuth { token_path } => {
             let token_store = TokenStore::new(PathBuf::from(token_path));
-            let token = token_store.load_token()?
-                .ok_or_else(|| crate::error::ColonyError::Auth(
-                    "No token found. Run 'colony auth login' first".to_string()
-                ))?;
+            let token = token_store.load_token()?.ok_or_else(|| {
+                crate::error::ColonyError::Auth(
+                    "No token found. Run 'colony auth login' first".to_string(),
+                )
+            })?;
 
             // Refresh token using OAuth flow
             let oauth_flow = OAuthFlow::new();

@@ -72,7 +72,6 @@ impl McpRegistry {
                 },
                 notes: Some("Change /tmp to your desired directory".to_string()),
             },
-
             // Web fetch
             McpServer {
                 id: "fetch".to_string(),
@@ -89,7 +88,6 @@ impl McpRegistry {
                 },
                 notes: None,
             },
-
             // Brave Search
             McpServer {
                 id: "brave-search".to_string(),
@@ -110,7 +108,6 @@ impl McpRegistry {
                 },
                 notes: Some("Requires BRAVE_API_KEY environment variable".to_string()),
             },
-
             // GitHub
             McpServer {
                 id: "github".to_string(),
@@ -131,7 +128,6 @@ impl McpRegistry {
                 },
                 notes: Some("Requires GITHUB_TOKEN environment variable".to_string()),
             },
-
             // PostgreSQL
             McpServer {
                 id: "postgres".to_string(),
@@ -146,14 +142,15 @@ impl McpRegistry {
                     ]),
                     env: Some({
                         let mut env = HashMap::new();
-                        env.insert("POSTGRES_CONNECTION_STRING".to_string(),
-                                 "postgresql://user:password@localhost:5432/dbname".to_string());
+                        env.insert(
+                            "POSTGRES_CONNECTION_STRING".to_string(),
+                            "postgresql://user:password@localhost:5432/dbname".to_string(),
+                        );
                         env
                     }),
                 },
                 notes: Some("Requires POSTGRES_CONNECTION_STRING environment variable".to_string()),
             },
-
             // SQLite
             McpServer {
                 id: "sqlite".to_string(),
@@ -171,7 +168,6 @@ impl McpRegistry {
                 },
                 notes: Some("Change database.db to your database file path".to_string()),
             },
-
             // Puppeteer (browser automation)
             McpServer {
                 id: "puppeteer".to_string(),
@@ -188,7 +184,6 @@ impl McpRegistry {
                 },
                 notes: None,
             },
-
             // Memory
             McpServer {
                 id: "memory".to_string(),
@@ -205,7 +200,6 @@ impl McpRegistry {
                 },
                 notes: None,
             },
-
             // Sequential Thinking
             McpServer {
                 id: "sequential-thinking".to_string(),
@@ -222,7 +216,6 @@ impl McpRegistry {
                 },
                 notes: None,
             },
-
             // Google Drive
             McpServer {
                 id: "gdrive".to_string(),
@@ -237,14 +230,15 @@ impl McpRegistry {
                     ]),
                     env: Some({
                         let mut env = HashMap::new();
-                        env.insert("GOOGLE_APPLICATION_CREDENTIALS".to_string(),
-                                 "path/to/credentials.json".to_string());
+                        env.insert(
+                            "GOOGLE_APPLICATION_CREDENTIALS".to_string(),
+                            "path/to/credentials.json".to_string(),
+                        );
                         env
                     }),
                 },
                 notes: Some("Requires Google Cloud credentials".to_string()),
             },
-
             // Slack
             McpServer {
                 id: "slack".to_string(),
@@ -265,7 +259,6 @@ impl McpRegistry {
                 },
                 notes: Some("Requires SLACK_BOT_TOKEN environment variable".to_string()),
             },
-
             // EverArt (image generation)
             McpServer {
                 id: "everart".to_string(),
@@ -286,7 +279,6 @@ impl McpRegistry {
                 },
                 notes: Some("Requires EVERART_API_KEY environment variable".to_string()),
             },
-
             // Google Maps
             McpServer {
                 id: "google-maps".to_string(),
@@ -301,30 +293,29 @@ impl McpRegistry {
                     ]),
                     env: Some({
                         let mut env = HashMap::new();
-                        env.insert("GOOGLE_MAPS_API_KEY".to_string(), "your-api-key".to_string());
+                        env.insert(
+                            "GOOGLE_MAPS_API_KEY".to_string(),
+                            "your-api-key".to_string(),
+                        );
                         env
                     }),
                 },
                 notes: Some("Requires GOOGLE_MAPS_API_KEY environment variable".to_string()),
             },
-
             // Code Index
             McpServer {
                 id: "code-index".to_string(),
                 name: "Code Index".to_string(),
-                description: "Index and search codebase with semantic code understanding".to_string(),
+                description: "Index and search codebase with semantic code understanding"
+                    .to_string(),
                 category: "Development".to_string(),
                 config: McpServerConfig {
                     command: "npx".to_string(),
-                    args: Some(vec![
-                        "-y".to_string(),
-                        "code-index-mcp".to_string(),
-                    ]),
+                    args: Some(vec!["-y".to_string(), "code-index-mcp".to_string()]),
                     env: None,
                 },
                 notes: Some("Provides semantic code search and navigation".to_string()),
             },
-
             // Figma
             McpServer {
                 id: "figma".to_string(),
@@ -339,13 +330,15 @@ impl McpRegistry {
                     ]),
                     env: Some({
                         let mut env = HashMap::new();
-                        env.insert("FIGMA_ACCESS_TOKEN".to_string(), "your-figma-token".to_string());
+                        env.insert(
+                            "FIGMA_ACCESS_TOKEN".to_string(),
+                            "your-figma-token".to_string(),
+                        );
                         env
                     }),
                 },
                 notes: Some("Requires FIGMA_ACCESS_TOKEN environment variable".to_string()),
             },
-
             // Desktop Commander
             McpServer {
                 id: "desktop-commander".to_string(),
@@ -354,15 +347,13 @@ impl McpRegistry {
                 category: "Productivity".to_string(),
                 config: McpServerConfig {
                     command: "npx".to_string(),
-                    args: Some(vec![
-                        "-y".to_string(),
-                        "desktop-commander-mcp".to_string(),
-                    ]),
+                    args: Some(vec!["-y".to_string(), "desktop-commander-mcp".to_string()]),
                     env: None,
                 },
-                notes: Some("Provides desktop automation capabilities (use with caution)".to_string()),
+                notes: Some(
+                    "Provides desktop automation capabilities (use with caution)".to_string(),
+                ),
             },
-
             // Serena
             McpServer {
                 id: "serena".to_string(),
@@ -371,27 +362,21 @@ impl McpRegistry {
                 category: "Productivity".to_string(),
                 config: McpServerConfig {
                     command: "npx".to_string(),
-                    args: Some(vec![
-                        "-y".to_string(),
-                        "serena-mcp".to_string(),
-                    ]),
+                    args: Some(vec!["-y".to_string(), "serena-mcp".to_string()]),
                     env: None,
                 },
                 notes: Some("Enhanced file finding with semantic understanding".to_string()),
             },
-
             // Context7
             McpServer {
                 id: "context7".to_string(),
                 name: "Context7".to_string(),
-                description: "Advanced context management and retrieval for AI workflows".to_string(),
+                description: "Advanced context management and retrieval for AI workflows"
+                    .to_string(),
                 category: "AI".to_string(),
                 config: McpServerConfig {
                     command: "npx".to_string(),
-                    args: Some(vec![
-                        "-y".to_string(),
-                        "context7-mcp".to_string(),
-                    ]),
+                    args: Some(vec!["-y".to_string(), "context7-mcp".to_string()]),
                     env: None,
                 },
                 notes: Some("Manages conversation context and knowledge retrieval".to_string()),
@@ -527,21 +512,26 @@ impl McpRegistry {
         let mut suggestions = Vec::new();
 
         // Common pairings
-        if server_ids.contains(&"github".to_string()) && !server_ids.contains(&"code-index".to_string()) {
+        if server_ids.contains(&"github".to_string())
+            && !server_ids.contains(&"code-index".to_string())
+        {
             suggestions.push((
                 "code-index".to_string(),
                 "Adds semantic code search to complement GitHub integration".to_string(),
             ));
         }
 
-        if server_ids.contains(&"figma".to_string()) && !server_ids.contains(&"puppeteer".to_string()) {
+        if server_ids.contains(&"figma".to_string())
+            && !server_ids.contains(&"puppeteer".to_string())
+        {
             suggestions.push((
                 "puppeteer".to_string(),
                 "Can automate Figma workflows in browser".to_string(),
             ));
         }
 
-        if (server_ids.contains(&"postgres".to_string()) || server_ids.contains(&"sqlite".to_string()))
+        if (server_ids.contains(&"postgres".to_string())
+            || server_ids.contains(&"sqlite".to_string()))
             && !server_ids.contains(&"filesystem".to_string())
         {
             suggestions.push((
@@ -557,7 +547,9 @@ impl McpRegistry {
             ));
         }
 
-        if server_ids.contains(&"code-index".to_string()) && !server_ids.contains(&"filesystem".to_string()) {
+        if server_ids.contains(&"code-index".to_string())
+            && !server_ids.contains(&"filesystem".to_string())
+        {
             suggestions.push((
                 "filesystem".to_string(),
                 "Required for code-index to access source files".to_string(),

@@ -101,9 +101,7 @@ pub fn prompt_number(prompt: &str, default: Option<usize>) -> Option<usize> {
 /// Multi-select from a list of options
 pub fn multiselect(prompt: &str, items: &[String], defaults: &[bool]) -> Option<Vec<usize>> {
     use dialoguer::MultiSelect;
-    let mut ms = MultiSelect::new()
-        .with_prompt(prompt)
-        .items(items);
+    let mut ms = MultiSelect::new().with_prompt(prompt).items(items);
 
     // Set defaults if provided
     if !defaults.is_empty() {

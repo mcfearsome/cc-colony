@@ -412,25 +412,27 @@ esac
             if specific_symlink.exists() || specific_symlink.symlink_metadata().is_ok() {
                 let _ = std::fs::remove_file(&specific_symlink);
             }
-            std::os::unix::fs::symlink(&relative_path, &specific_symlink)
-                .map_err(|e| crate::error::ColonyError::Colony(format!(
+            std::os::unix::fs::symlink(&relative_path, &specific_symlink).map_err(|e| {
+                crate::error::ColonyError::Colony(format!(
                     "Failed to create specific symlink for agent '{}' at {}: {}",
                     agent_id,
                     specific_symlink.display(),
                     e
-                )))?;
+                ))
+            })?;
 
             // Create generic symlink (for convenience when worktree is not shared)
             if generic_symlink.exists() || generic_symlink.symlink_metadata().is_ok() {
                 let _ = std::fs::remove_file(&generic_symlink);
             }
-            std::os::unix::fs::symlink(&relative_path, &generic_symlink)
-                .map_err(|e| crate::error::ColonyError::Colony(format!(
+            std::os::unix::fs::symlink(&relative_path, &generic_symlink).map_err(|e| {
+                crate::error::ColonyError::Colony(format!(
                     "Failed to create generic symlink for agent '{}' at {}: {}",
                     agent_id,
                     generic_symlink.display(),
                     e
-                )))?;
+                ))
+            })?;
         }
     }
 

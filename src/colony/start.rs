@@ -2,7 +2,10 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{agent_skills, executor, layout, messaging, skills, tmux, state_integration, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{
+    agent_skills, executor, layout, messaging, skills, state_integration, tmux, AgentStatus,
+    ColonyConfig, ColonyController,
+};
 use crate::error::ColonyResult;
 use crate::utils;
 
@@ -75,10 +78,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     if let Some(executor_config) = &controller.config().executor {
         if executor_config.enabled {
             utils::info("Setting up MCP Executor environment...");
-            executor::setup_executor_environment(
-                controller.colony_root(),
-                executor_config,
-            )?;
+            executor::setup_executor_environment(controller.colony_root(), executor_config)?;
             utils::success("MCP Executor environment ready");
         }
     }
@@ -134,19 +134,22 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         println!("  Model: {}", agent.config.model);
 
         // Create startup prompt file and capture the prompt text
-        let startup_prompt = match create_startup_prompt(agent, repo_config.as_ref(), has_shared_state).await {
-            Ok(prompt) => Some(prompt),
-            Err(e) => {
-                utils::warning(&format!("  Failed to create startup prompt: {}", e));
-                None
-            }
-        };
+        let startup_prompt =
+            match create_startup_prompt(agent, repo_config.as_ref(), has_shared_state).await {
+                Ok(prompt) => Some(prompt),
+                Err(e) => {
+                    utils::warning(&format!("  Failed to create startup prompt: {}", e));
+                    None
+                }
+            };
 
         // Create settings.json file if agent has MCP server configuration
         if agent.config.has_mcp_servers() {
             match create_agent_settings(agent).await {
                 Ok(()) => {
-                    utils::info(&format!("  Created settings.json with MCP server configuration"));
+                    utils::info(&format!(
+                        "  Created settings.json with MCP server configuration"
+                    ));
                 }
                 Err(e) => {
                     utils::warning(&format!("  Failed to create settings.json: {}", e));
@@ -155,7 +158,9 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         }
 
         // Install agent skills (tmux, nvim, ollama) and create symlink from worktree
-        if let Err(e) = agent_skills::install_agent_skills(&agent.project_path, &agent.worktree_path) {
+        if let Err(e) =
+            agent_skills::install_agent_skills(&agent.project_path, &agent.worktree_path)
+        {
             utils::warning(&format!("  Failed to install agent skills: {}", e));
         }
 
@@ -177,9 +182,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         let env_prefix = if let Some(env_vars) = &agent.config.env {
             let exports: Vec<String> = env_vars
                 .iter()
-                .map(|(key, value)| {
-                    format!("export {}={}", shell_escape(key), shell_escape(value))
-                })
+                .map(|(key, value)| format!("export {}={}", shell_escape(key), shell_escape(value)))
                 .collect();
             if exports.is_empty() {
                 String::new()
@@ -191,7 +194,10 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         };
 
         // Add capability environment variables
-        let capabilities_env = if let Some(caps) = agent.config.resolved_capabilities(global_capabilities.as_ref()) {
+        let capabilities_env = if let Some(caps) = agent
+            .config
+            .resolved_capabilities(global_capabilities.as_ref())
+        {
             let tools_str = caps.tools.join(",");
             let mcp_servers_str = caps.mcp_servers.join(",");
             let pane_tools_str = caps.pane_tools.join(",");
@@ -211,7 +217,10 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         let shell_init = "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true";
 
         // Build capabilities section if configured
-        let capabilities_section = if let Some(caps) = agent.config.resolved_capabilities(global_capabilities.as_ref()) {
+        let capabilities_section = if let Some(caps) = agent
+            .config
+            .resolved_capabilities(global_capabilities.as_ref())
+        {
             format!(
                 r#"
 
@@ -223,9 +232,21 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
 
 Environment variables: `$COLONY_TOOLS`, `$COLONY_MCP_SERVERS`, `$COLONY_PANE_TOOLS`
 "#,
-                if caps.tools.is_empty() { "None".to_string() } else { caps.tools.join(", ") },
-                if caps.mcp_servers.is_empty() { "None".to_string() } else { caps.mcp_servers.join(", ") },
-                if caps.pane_tools.is_empty() { "None".to_string() } else { caps.pane_tools.join(", ") }
+                if caps.tools.is_empty() {
+                    "None".to_string()
+                } else {
+                    caps.tools.join(", ")
+                },
+                if caps.mcp_servers.is_empty() {
+                    "None".to_string()
+                } else {
+                    caps.mcp_servers.join(", ")
+                },
+                if caps.pane_tools.is_empty() {
+                    "None".to_string()
+                } else {
+                    caps.pane_tools.join(", ")
+                }
             )
         } else {
             String::new()
@@ -328,7 +349,10 @@ Now get started on your assigned work!"#,
                 *coords
             } else {
                 // Agent not in layout config, skip
-                utils::warning(&format!("Agent '{}' not found in custom layout, skipping", agent_id));
+                utils::warning(&format!(
+                    "Agent '{}' not found in custom layout, skipping",
+                    agent_id
+                ));
                 continue;
             }
         } else {
@@ -353,7 +377,12 @@ Now get started on your assigned work!"#,
 
         // Set pane title
         if use_custom_layout {
-            tmux::set_window_pane_title(&session_name, window_idx, pane_idx, &format!("Agent: {}", agent.id()))?;
+            tmux::set_window_pane_title(
+                &session_name,
+                window_idx,
+                pane_idx,
+                &format!("Agent: {}", agent.id()),
+            )?;
         } else {
             tmux::set_pane_title(&session_name, pane_idx, &format!("Agent: {}", agent.id()))?;
         }
@@ -446,8 +475,13 @@ Now get started on your assigned work!"#,
 
                         // Show which MCP servers were configured
                         if let Some(mcp_servers) = &executor_config.mcp_servers {
-                            utils::info(&format!("  Configured MCP servers: {}",
-                                mcp_servers.keys().map(|k| k.as_str()).collect::<Vec<_>>().join(", ")
+                            utils::info(&format!(
+                                "  Configured MCP servers: {}",
+                                mcp_servers
+                                    .keys()
+                                    .map(|k| k.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
                             ));
                         }
                     }
@@ -503,7 +537,10 @@ Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
                 if let Ok(contents) = std::fs::read_to_string(&executor_settings_path) {
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
                         if let Some(servers) = json.get("mcpServers").and_then(|s| s.as_object()) {
-                            utils::info(&format!("  Verified {} MCP servers in settings file", servers.len()));
+                            utils::info(&format!(
+                                "  Verified {} MCP servers in settings file",
+                                servers.len()
+                            ));
                         }
                     }
                 } else {
@@ -535,7 +572,12 @@ Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
                 // With custom layout, find executor's position in pane_map
                 if let Some(coords) = pane_map.get("mcp-executor") {
                     // Send command to pre-existing pane
-                    tmux::send_command_to_window_pane(&session_name, coords.0, coords.1, &executor_cmd)?;
+                    tmux::send_command_to_window_pane(
+                        &session_name,
+                        coords.0,
+                        coords.1,
+                        &executor_cmd,
+                    )?;
                     *coords
                 } else {
                     // Not in layout, use default position
@@ -671,15 +713,26 @@ Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
 
         // Set title
         if use_custom_layout {
-            tmux::set_window_pane_title(&session_name, tui_window_idx, tui_pane_idx, "Orchestration TUI")?;
+            tmux::set_window_pane_title(
+                &session_name,
+                tui_window_idx,
+                tui_pane_idx,
+                "Orchestration TUI",
+            )?;
         } else {
             tmux::set_pane_title(&session_name, tui_pane_idx, "Orchestration TUI")?;
         }
 
         if use_custom_layout {
-            utils::success(&format!("  Orchestration TUI pane created in window {}:{}", tui_window_idx, tui_pane_idx));
+            utils::success(&format!(
+                "  Orchestration TUI pane created in window {}:{}",
+                tui_window_idx, tui_pane_idx
+            ));
         } else {
-            utils::success(&format!("  Orchestration TUI pane created in pane {}", tui_pane_idx));
+            utils::success(&format!(
+                "  Orchestration TUI pane created in pane {}",
+                tui_pane_idx
+            ));
         }
     }
 
@@ -693,9 +746,16 @@ Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
 
     // Track colony started event (if telemetry is enabled)
     if controller.config().telemetry.enabled {
-        let telemetry_client = crate::colony::telemetry::TelemetryClient::new(controller.config().telemetry.clone());
-        let has_executor = controller.config().executor.as_ref().map_or(false, |e| e.enabled);
-        telemetry_client.track_colony_started(agent_count, has_executor).await;
+        let telemetry_client =
+            crate::colony::telemetry::TelemetryClient::new(controller.config().telemetry.clone());
+        let has_executor = controller
+            .config()
+            .executor
+            .as_ref()
+            .map_or(false, |e| e.enabled);
+        telemetry_client
+            .track_colony_started(agent_count, has_executor)
+            .await;
     }
 
     utils::header("Colony Started Successfully!");
@@ -940,22 +1000,17 @@ async fn create_agent_settings(agent: &crate::colony::Agent) -> ColonyResult<()>
     if worktree_settings_path.exists() {
         // Load existing settings from the working directory
         match tokio::fs::read_to_string(&worktree_settings_path).await {
-            Ok(contents) => {
-                match serde_json::from_str::<Value>(&contents) {
-                    Ok(existing_settings) => {
-                        utils::info(&format!(
-                            "  Found existing .claude/settings.json in working directory, merging..."
-                        ));
-                        merged_settings = existing_settings;
-                    }
-                    Err(e) => {
-                        utils::warning(&format!(
-                            "  Failed to parse existing settings.json: {}",
-                            e
-                        ));
-                    }
+            Ok(contents) => match serde_json::from_str::<Value>(&contents) {
+                Ok(existing_settings) => {
+                    utils::info(&format!(
+                        "  Found existing .claude/settings.json in working directory, merging..."
+                    ));
+                    merged_settings = existing_settings;
                 }
-            }
+                Err(e) => {
+                    utils::warning(&format!("  Failed to parse existing settings.json: {}", e));
+                }
+            },
             Err(e) => {
                 utils::warning(&format!("  Failed to read existing settings.json: {}", e));
             }
@@ -996,8 +1051,9 @@ async fn create_agent_settings(agent: &crate::colony::Agent) -> ColonyResult<()>
     }
 
     // Write merged settings.json file
-    let settings_json = serde_json::to_string_pretty(&merged_settings)
-        .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to serialize merged settings: {}", e)))?;
+    let settings_json = serde_json::to_string_pretty(&merged_settings).map_err(|e| {
+        crate::error::ColonyError::Colony(format!("Failed to serialize merged settings: {}", e))
+    })?;
 
     let settings_path = claude_dir.join("settings.json");
     let mut file = File::create(&settings_path).await?;
@@ -1080,7 +1136,10 @@ async fn setup_state_infrastructure(controller: &ColonyController) -> ColonyResu
     if state_config.auto_pull {
         utils::info("Pulling latest state from remote...");
         if let Err(e) = state_backend.pull().await {
-            utils::warning(&format!("Failed to pull state: {}. Continuing with local state.", e));
+            utils::warning(&format!(
+                "Failed to pull state: {}. Continuing with local state.",
+                e
+            ));
         } else {
             utils::success("State synced from remote");
         }
@@ -1137,7 +1196,10 @@ fn send_prompt_to_pane(session_name: &str, pane_index: usize, prompt: &str) -> C
     }
 
     // Send Enter key to submit the prompt
-    let enter_cmd = format!("tmux send-keys -t {}:0.{} Enter", escaped_session, pane_index);
+    let enter_cmd = format!(
+        "tmux send-keys -t {}:0.{} Enter",
+        escaped_session, pane_index
+    );
 
     let output = Command::new("sh").arg("-c").arg(&enter_cmd).output()?;
 

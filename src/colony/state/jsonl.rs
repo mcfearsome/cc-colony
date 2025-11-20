@@ -13,17 +13,19 @@ pub async fn read_jsonl<T: DeserializeOwned>(path: &Path) -> ColonyResult<Vec<T>
         return Ok(Vec::new());
     }
 
-    let file = File::open(path).await.map_err(|e| {
-        ColonyError::Colony(format!("Failed to open JSONL file {:?}: {}", path, e))
-    })?;
+    let file = File::open(path)
+        .await
+        .map_err(|e| ColonyError::Colony(format!("Failed to open JSONL file {:?}: {}", path, e)))?;
 
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
     let mut entries = Vec::new();
 
-    while let Some(line) = lines.next_line().await.map_err(|e| {
-        ColonyError::Colony(format!("Failed to read line from {:?}: {}", path, e))
-    })? {
+    while let Some(line) = lines
+        .next_line()
+        .await
+        .map_err(|e| ColonyError::Colony(format!("Failed to read line from {:?}: {}", path, e)))?
+    {
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -53,22 +55,21 @@ pub async fn write_jsonl<T: Serialize>(path: &Path, entries: &[T]) -> ColonyResu
     })?;
 
     for entry in entries {
-        let json = serde_json::to_string(entry).map_err(|e| {
-            ColonyError::Colony(format!("Failed to serialize entry: {}", e))
-        })?;
+        let json = serde_json::to_string(entry)
+            .map_err(|e| ColonyError::Colony(format!("Failed to serialize entry: {}", e)))?;
 
-        file.write_all(json.as_bytes()).await.map_err(|e| {
-            ColonyError::Colony(format!("Failed to write to {:?}: {}", path, e))
-        })?;
+        file.write_all(json.as_bytes())
+            .await
+            .map_err(|e| ColonyError::Colony(format!("Failed to write to {:?}: {}", path, e)))?;
 
         file.write_all(b"\n").await.map_err(|e| {
             ColonyError::Colony(format!("Failed to write newline to {:?}: {}", path, e))
         })?;
     }
 
-    file.sync_all().await.map_err(|e| {
-        ColonyError::Colony(format!("Failed to sync {:?}: {}", path, e))
-    })?;
+    file.sync_all()
+        .await
+        .map_err(|e| ColonyError::Colony(format!("Failed to sync {:?}: {}", path, e)))?;
 
     Ok(())
 }
@@ -92,26 +93,26 @@ pub async fn append_jsonl<T: Serialize>(path: &Path, entry: &T) -> ColonyResult<
     let json = serde_json::to_string(entry)
         .map_err(|e| ColonyError::Colony(format!("Failed to serialize entry: {}", e)))?;
 
-    file.write_all(json.as_bytes()).await.map_err(|e| {
-        ColonyError::Colony(format!("Failed to write to {:?}: {}", path, e))
-    })?;
+    file.write_all(json.as_bytes())
+        .await
+        .map_err(|e| ColonyError::Colony(format!("Failed to write to {:?}: {}", path, e)))?;
 
     file.write_all(b"\n").await.map_err(|e| {
         ColonyError::Colony(format!("Failed to write newline to {:?}: {}", path, e))
     })?;
 
-    file.sync_all().await.map_err(|e| {
-        ColonyError::Colony(format!("Failed to sync {:?}: {}", path, e))
-    })?;
+    file.sync_all()
+        .await
+        .map_err(|e| ColonyError::Colony(format!("Failed to sync {:?}: {}", path, e)))?;
 
     Ok(())
 }
 
 /// Get the last modified time of a file
 pub async fn get_modified_time(path: &Path) -> ColonyResult<std::time::SystemTime> {
-    let metadata = tokio::fs::metadata(path)
-        .await
-        .map_err(|e| ColonyError::Colony(format!("Failed to get metadata for {:?}: {}", path, e)))?;
+    let metadata = tokio::fs::metadata(path).await.map_err(|e| {
+        ColonyError::Colony(format!("Failed to get metadata for {:?}: {}", path, e))
+    })?;
 
     metadata.modified().map_err(|e| {
         ColonyError::Colony(format!("Failed to get modified time for {:?}: {}", path, e))

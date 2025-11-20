@@ -102,10 +102,7 @@ pub async fn run() -> ColonyResult<()> {
     match check_message_queue() {
         Ok(count) => {
             if count > 0 {
-                println!(
-                    "{}",
-                    format!("✓ OK ({} messages pending)", count).green()
-                );
+                println!("{}", format!("✓ OK ({} messages pending)", count).green());
             } else {
                 println!("{}", "✓ OK (empty)".green());
             }
@@ -133,9 +130,7 @@ async fn check_config() -> ColonyResult<()> {
     let config_path = Path::new("colony.yml");
 
     if !config_path.exists() {
-        return Err(ColonyError::Colony(
-            "colony.yml not found".to_string(),
-        ));
+        return Err(ColonyError::Colony("colony.yml not found".to_string()));
     }
 
     let config = ColonyConfig::load(config_path)?;
@@ -202,9 +197,7 @@ fn check_git_repository() -> Result<String, String> {
 
 /// Check tmux installation
 fn check_tmux() -> ColonyResult<()> {
-    let output = std::process::Command::new("tmux")
-        .args(["-V"])
-        .output();
+    let output = std::process::Command::new("tmux").args(["-V"]).output();
 
     match output {
         Ok(o) if o.status.success() => Ok(()),
@@ -223,8 +216,8 @@ async fn check_shared_state() -> Result<Option<String>, String> {
         return Ok(None);
     }
 
-    let config = ColonyConfig::load(config_path)
-        .map_err(|e| format!("Failed to load config: {}", e))?;
+    let config =
+        ColonyConfig::load(config_path).map_err(|e| format!("Failed to load config: {}", e))?;
 
     if config.shared_state.is_none() {
         return Ok(None);
@@ -263,8 +256,8 @@ fn check_agent_state() -> Result<(usize, usize), String> {
         return Err("No configuration".to_string());
     }
 
-    let config = ColonyConfig::load(config_path)
-        .map_err(|e| format!("Failed to load config: {}", e))?;
+    let config =
+        ColonyConfig::load(config_path).map_err(|e| format!("Failed to load config: {}", e))?;
 
     let total = config.agents.len();
 
@@ -275,11 +268,11 @@ fn check_agent_state() -> Result<(usize, usize), String> {
         return Ok((0, total));
     }
 
-    let content = std::fs::read_to_string(state_path)
-        .map_err(|e| format!("Failed to read state: {}", e))?;
+    let content =
+        std::fs::read_to_string(state_path).map_err(|e| format!("Failed to read state: {}", e))?;
 
-    let states: Vec<serde_json::Value> = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse state: {}", e))?;
+    let states: Vec<serde_json::Value> =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse state: {}", e))?;
 
     let running = states
         .iter()

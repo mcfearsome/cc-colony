@@ -2,8 +2,8 @@ pub mod oauth;
 pub mod providers;
 pub mod token_store;
 
-use serde::{Deserialize, Serialize};
 use crate::error::ColonyResult;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "provider", rename_all = "kebab-case")]
@@ -25,16 +25,11 @@ pub enum AuthProvider {
 
     /// OAuth for Claude.ai Pro/Max users
     #[serde(rename = "anthropic-oauth")]
-    AnthropicOAuth {
-        token_path: String,
-    },
+    AnthropicOAuth { token_path: String },
 
     /// Google Cloud Vertex AI
     #[serde(rename = "vertex-ai")]
-    VertexAI {
-        project: String,
-        location: String,
-    },
+    VertexAI { project: String, location: String },
 }
 
 impl Default for AuthProvider {
@@ -83,36 +78,33 @@ impl AuthManager {
                 Ok(AuthCredentials::ApiKey(key))
             }
 
-            AuthProvider::Bedrock { region, profile } => {
-                Ok(AuthCredentials::Bedrock {
-                    region: region.clone(),
-                    profile: profile.clone(),
-                })
-            }
+            AuthProvider::Bedrock { region, profile } => Ok(AuthCredentials::Bedrock {
+                region: region.clone(),
+                profile: profile.clone(),
+            }),
 
             AuthProvider::AnthropicOAuth { token_path } => {
                 let token_store = token_store::TokenStore::new(token_path.into());
-                let token = token_store.load_token()?
-                    .ok_or_else(|| crate::error::ColonyError::Auth(
-                        "Not authenticated. Run 'colony auth login' first".to_string()
-                    ))?;
+                let token = token_store.load_token()?.ok_or_else(|| {
+                    crate::error::ColonyError::Auth(
+                        "Not authenticated. Run 'colony auth login' first".to_string(),
+                    )
+                })?;
 
                 // Check if token is expired
                 if token.is_expired() {
                     return Err(crate::error::ColonyError::Auth(
-                        "Token expired. Run 'colony auth refresh'".to_string()
+                        "Token expired. Run 'colony auth refresh'".to_string(),
                     ));
                 }
 
                 Ok(AuthCredentials::OAuth(token.access_token))
             }
 
-            AuthProvider::VertexAI { project, location } => {
-                Ok(AuthCredentials::VertexAI {
-                    project: project.clone(),
-                    location: location.clone(),
-                })
-            }
+            AuthProvider::VertexAI { project, location } => Ok(AuthCredentials::VertexAI {
+                project: project.clone(),
+                location: location.clone(),
+            }),
         }
     }
 

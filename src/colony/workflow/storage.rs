@@ -34,13 +34,11 @@ impl WorkflowStorage {
     /// Save a workflow definition
     pub fn save_workflow(&self, definition: &WorkflowDefinition) -> ColonyResult<()> {
         let path = self.workflows_dir.join(format!("{}.yaml", definition.name));
-        let yaml = serde_yaml::to_string(definition).map_err(|e| {
-            ColonyError::Colony(format!("Failed to serialize workflow: {}", e))
-        })?;
+        let yaml = serde_yaml::to_string(definition)
+            .map_err(|e| ColonyError::Colony(format!("Failed to serialize workflow: {}", e)))?;
 
-        fs::write(&path, yaml).map_err(|e| {
-            ColonyError::Colony(format!("Failed to write workflow file: {}", e))
-        })?;
+        fs::write(&path, yaml)
+            .map_err(|e| ColonyError::Colony(format!("Failed to write workflow file: {}", e)))?;
 
         Ok(())
     }
@@ -56,13 +54,11 @@ impl WorkflowStorage {
             )));
         }
 
-        let content = fs::read_to_string(&path).map_err(|e| {
-            ColonyError::Colony(format!("Failed to read workflow file: {}", e))
-        })?;
+        let content = fs::read_to_string(&path)
+            .map_err(|e| ColonyError::Colony(format!("Failed to read workflow file: {}", e)))?;
 
-        let definition: WorkflowDefinition = serde_yaml::from_str(&content).map_err(|e| {
-            ColonyError::Colony(format!("Failed to parse workflow YAML: {}", e))
-        })?;
+        let definition: WorkflowDefinition = serde_yaml::from_str(&content)
+            .map_err(|e| ColonyError::Colony(format!("Failed to parse workflow YAML: {}", e)))?;
 
         Ok(definition)
     }
@@ -105,9 +101,8 @@ impl WorkflowStorage {
             )));
         }
 
-        fs::remove_file(&path).map_err(|e| {
-            ColonyError::Colony(format!("Failed to delete workflow: {}", e))
-        })?;
+        fs::remove_file(&path)
+            .map_err(|e| ColonyError::Colony(format!("Failed to delete workflow: {}", e)))?;
 
         Ok(())
     }
@@ -120,9 +115,8 @@ impl WorkflowStorage {
         })?;
 
         let path = workflow_runs_dir.join(format!("{}.json", run.id));
-        let json = serde_json::to_string_pretty(run).map_err(|e| {
-            ColonyError::Colony(format!("Failed to serialize workflow run: {}", e))
-        })?;
+        let json = serde_json::to_string_pretty(run)
+            .map_err(|e| ColonyError::Colony(format!("Failed to serialize workflow run: {}", e)))?;
 
         fs::write(&path, json).map_err(|e| {
             ColonyError::Colony(format!("Failed to write workflow run file: {}", e))

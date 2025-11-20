@@ -1,6 +1,9 @@
 //! CLI commands for shared state management
 
-use crate::colony::state::{GitBackedState, SharedStateConfig, Task, TaskIdGenerator, TaskStatus, Workflow, WorkflowStatus, MemoryEntry, MemoryType};
+use crate::colony::state::{
+    GitBackedState, MemoryEntry, MemoryType, SharedStateConfig, Task, TaskIdGenerator, TaskStatus,
+    Workflow, WorkflowStatus,
+};
 use crate::error::{ColonyError, ColonyResult};
 use crate::utils;
 use chrono::Utc;
@@ -134,7 +137,11 @@ pub async fn task_show(id: String) -> ColonyResult<()> {
             };
             println!("{}: {}", "Status".bold(), status_str);
 
-            println!("{}: {}", "Created".bold(), t.created.format("%Y-%m-%d %H:%M:%S"));
+            println!(
+                "{}: {}",
+                "Created".bold(),
+                t.created.format("%Y-%m-%d %H:%M:%S")
+            );
 
             if let Some(assigned) = &t.assigned {
                 println!("{}: {}", "Assigned".bold(), assigned.yellow());
@@ -145,7 +152,11 @@ pub async fn task_show(id: String) -> ColonyResult<()> {
             }
 
             if let Some(completed) = t.completed {
-                println!("{}: {}", "Completed".bold(), completed.format("%Y-%m-%d %H:%M:%S"));
+                println!(
+                    "{}: {}",
+                    "Completed".bold(),
+                    completed.format("%Y-%m-%d %H:%M:%S")
+                );
             }
 
             println!();
@@ -159,7 +170,11 @@ pub async fn task_show(id: String) -> ColonyResult<()> {
 }
 
 /// Create a new task
-pub async fn task_add(title: String, description: Option<String>, blockers: Vec<String>) -> ColonyResult<()> {
+pub async fn task_add(
+    title: String,
+    description: Option<String>,
+    blockers: Vec<String>,
+) -> ColonyResult<()> {
     let state = init_state().await?;
 
     let task = if blockers.is_empty() {
@@ -188,7 +203,9 @@ pub async fn task_add(title: String, description: Option<String>, blockers: Vec<
 pub async fn task_update(id: String, status: String) -> ColonyResult<()> {
     let state = init_state().await?;
 
-    let mut task = state.get_task(&id).await?
+    let mut task = state
+        .get_task(&id)
+        .await?
         .ok_or_else(|| ColonyError::Colony(format!("Task '{}' not found", id)))?;
 
     let new_status = match status.to_lowercase().as_str() {
@@ -213,7 +230,8 @@ pub async fn task_update(id: String, status: String) -> ColonyResult<()> {
     task.status = new_status;
     state.update_task(task).await?;
 
-    utils::success(&format!("Updated task {} status: {} → {}",
+    utils::success(&format!(
+        "Updated task {} status: {} → {}",
         id.bright_blue(),
         old_status.yellow(),
         new_status_str.green()
@@ -226,13 +244,16 @@ pub async fn task_update(id: String, status: String) -> ColonyResult<()> {
 pub async fn task_assign(id: String, agent_id: String) -> ColonyResult<()> {
     let state = init_state().await?;
 
-    let mut task = state.get_task(&id).await?
+    let mut task = state
+        .get_task(&id)
+        .await?
         .ok_or_else(|| ColonyError::Colony(format!("Task '{}' not found", id)))?;
 
     task.assigned = Some(agent_id.clone());
     state.update_task(task).await?;
 
-    utils::success(&format!("Assigned task {} to {}",
+    utils::success(&format!(
+        "Assigned task {} to {}",
         id.bright_blue(),
         agent_id.yellow()
     ));
@@ -244,7 +265,9 @@ pub async fn task_assign(id: String, agent_id: String) -> ColonyResult<()> {
 pub async fn task_block(id: String, blocker: String) -> ColonyResult<()> {
     let state = init_state().await?;
 
-    let mut task = state.get_task(&id).await?
+    let mut task = state
+        .get_task(&id)
+        .await?
         .ok_or_else(|| ColonyError::Colony(format!("Task '{}' not found", id)))?;
 
     if !task.blockers.contains(&blocker) {
@@ -252,12 +275,16 @@ pub async fn task_block(id: String, blocker: String) -> ColonyResult<()> {
         task.status = TaskStatus::Blocked;
         state.update_task(task).await?;
 
-        utils::success(&format!("Added blocker {} to task {}",
+        utils::success(&format!(
+            "Added blocker {} to task {}",
             blocker.red(),
             id.bright_blue()
         ));
     } else {
-        println!("{}", format!("Task {} already blocked by {}", id, blocker).yellow());
+        println!(
+            "{}",
+            format!("Task {} already blocked by {}", id, blocker).yellow()
+        );
     }
 
     Ok(())
@@ -326,10 +353,18 @@ pub async fn workflow_show(id: String) -> ColonyResult<()> {
             };
             println!("{}: {}", "Status".bold(), status_str);
 
-            println!("{}: {}", "Started".bold(), w.started.format("%Y-%m-%d %H:%M:%S"));
+            println!(
+                "{}: {}",
+                "Started".bold(),
+                w.started.format("%Y-%m-%d %H:%M:%S")
+            );
 
             if let Some(completed) = w.completed {
-                println!("{}: {}", "Completed".bold(), completed.format("%Y-%m-%d %H:%M:%S"));
+                println!(
+                    "{}: {}",
+                    "Completed".bold(),
+                    completed.format("%Y-%m-%d %H:%M:%S")
+                );
             }
 
             if let Some(step) = &w.current_step {
@@ -379,7 +414,9 @@ pub async fn workflow_add(name: String) -> ColonyResult<()> {
 pub async fn workflow_update(id: String, status: String) -> ColonyResult<()> {
     let state = init_state().await?;
 
-    let mut workflow = state.get_workflow(&id).await?
+    let mut workflow = state
+        .get_workflow(&id)
+        .await?
         .ok_or_else(|| ColonyError::Colony(format!("Workflow '{}' not found", id)))?;
 
     let new_status = match status.to_lowercase().as_str() {
@@ -406,7 +443,8 @@ pub async fn workflow_update(id: String, status: String) -> ColonyResult<()> {
     workflow.status = new_status;
     state.update_workflow(workflow).await?;
 
-    utils::success(&format!("Updated workflow {} status: {} → {}",
+    utils::success(&format!(
+        "Updated workflow {} status: {} → {}",
         id.bright_blue(),
         old_status.yellow(),
         new_status_str.green()
@@ -420,7 +458,12 @@ pub async fn workflow_update(id: String, status: String) -> ColonyResult<()> {
 // ============================================================================
 
 /// Add memory entry
-pub async fn memory_add(entry_type: String, content: String, key: Option<String>, value: Option<String>) -> ColonyResult<()> {
+pub async fn memory_add(
+    entry_type: String,
+    content: String,
+    key: Option<String>,
+    value: Option<String>,
+) -> ColonyResult<()> {
     let state = init_state().await?;
 
     let mem_type = match entry_type.to_lowercase().as_str() {
@@ -476,7 +519,11 @@ pub async fn memory_search(_query: String) -> ColonyResult<()> {
         println!(
             "[{}] {}",
             type_str,
-            entry.timestamp.format("%Y-%m-%d %H:%M:%S").to_string().dimmed()
+            entry
+                .timestamp
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+                .dimmed()
         );
 
         if let Some(key) = &entry.key {
@@ -532,7 +579,10 @@ pub async fn push() -> ColonyResult<()> {
         Ok(())
     } else {
         let error = String::from_utf8_lossy(&output.stderr);
-        Err(ColonyError::Colony(format!("Failed to push state: {}", error)))
+        Err(ColonyError::Colony(format!(
+            "Failed to push state: {}",
+            error
+        )))
     }
 }
 

@@ -50,7 +50,16 @@ pub fn render(f: &mut Frame, app: &App) {
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
-    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Compose", "6: Instructions", "7: Config", "8: Help"];
+    let tab_titles = vec![
+        "1: Agents",
+        "2: Tasks",
+        "3: Messages",
+        "4: State",
+        "5: Compose",
+        "6: Instructions",
+        "7: Config",
+        "8: Help",
+    ];
 
     let tabs = Tabs::new(tab_titles)
         .block(
@@ -73,25 +82,66 @@ fn render_metrics(f: &mut Frame, app: &App, area: Rect) {
     use crate::colony::state::{TaskStatus as StateTaskStatus, WorkflowStatus};
 
     // Calculate agent metrics
-    let agents_running = app.data.agents.iter().filter(|a| a.status == AgentStatus::Running).count();
-    let agents_idle = app.data.agents.iter().filter(|a| a.status == AgentStatus::Idle).count();
-    let agents_failed = app.data.agents.iter().filter(|a| a.status == AgentStatus::Failed).count();
+    let agents_running = app
+        .data
+        .agents
+        .iter()
+        .filter(|a| a.status == AgentStatus::Running)
+        .count();
+    let agents_idle = app
+        .data
+        .agents
+        .iter()
+        .filter(|a| a.status == AgentStatus::Idle)
+        .count();
+    let agents_failed = app
+        .data
+        .agents
+        .iter()
+        .filter(|a| a.status == AgentStatus::Failed)
+        .count();
     let agents_total = app.data.agents.len();
 
     // Calculate task metrics (from tasks tab)
-    let tasks_pending = app.data.tasks.get(&TaskStatus::Pending).map(|v| v.len()).unwrap_or(0);
-    let tasks_in_progress = app.data.tasks.get(&TaskStatus::InProgress).map(|v| v.len()).unwrap_or(0);
-    let tasks_completed = app.data.tasks.get(&TaskStatus::Completed).map(|v| v.len()).unwrap_or(0);
+    let tasks_pending = app
+        .data
+        .tasks
+        .get(&TaskStatus::Pending)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    let tasks_in_progress = app
+        .data
+        .tasks
+        .get(&TaskStatus::InProgress)
+        .map(|v| v.len())
+        .unwrap_or(0);
+    let tasks_completed = app
+        .data
+        .tasks
+        .get(&TaskStatus::Completed)
+        .map(|v| v.len())
+        .unwrap_or(0);
     let tasks_total = app.data.tasks.values().map(|v| v.len()).sum::<usize>();
 
     // Calculate message count
     let messages_count = app.data.messages.len();
 
     let mut metrics_text = vec![
-        Span::styled("Agents: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{} ", agents_total), Style::default().fg(Color::White)),
+        Span::styled(
+            "Agents: ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{} ", agents_total),
+            Style::default().fg(Color::White),
+        ),
         Span::styled("(", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!("{}", agents_running), Style::default().fg(Color::Green)),
+        Span::styled(
+            format!("{}", agents_running),
+            Style::default().fg(Color::Green),
+        ),
         Span::styled(" run", Style::default().fg(Color::DarkGray)),
         Span::styled(", ", Style::default().fg(Color::DarkGray)),
         Span::styled(format!("{}", agents_idle), Style::default().fg(Color::Gray)),
@@ -101,7 +151,10 @@ fn render_metrics(f: &mut Frame, app: &App, area: Rect) {
     if agents_failed > 0 {
         metrics_text.extend(vec![
             Span::styled(", ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", agents_failed), Style::default().fg(Color::Red)),
+            Span::styled(
+                format!("{}", agents_failed),
+                Style::default().fg(Color::Red),
+            ),
             Span::styled(" fail", Style::default().fg(Color::DarkGray)),
         ]);
     }
@@ -109,51 +162,123 @@ fn render_metrics(f: &mut Frame, app: &App, area: Rect) {
     metrics_text.extend(vec![
         Span::styled(")", Style::default().fg(Color::DarkGray)),
         Span::raw("  │  "),
-        Span::styled("Tasks: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{} ", tasks_total), Style::default().fg(Color::White)),
+        Span::styled(
+            "Tasks: ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{} ", tasks_total),
+            Style::default().fg(Color::White),
+        ),
         Span::styled("(", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!("{}", tasks_pending), Style::default().fg(Color::Yellow)),
+        Span::styled(
+            format!("{}", tasks_pending),
+            Style::default().fg(Color::Yellow),
+        ),
         Span::styled(" pend", Style::default().fg(Color::DarkGray)),
         Span::styled(", ", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!("{}", tasks_in_progress), Style::default().fg(Color::Cyan)),
+        Span::styled(
+            format!("{}", tasks_in_progress),
+            Style::default().fg(Color::Cyan),
+        ),
         Span::styled(" prog", Style::default().fg(Color::DarkGray)),
         Span::styled(", ", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!("{}", tasks_completed), Style::default().fg(Color::Green)),
+        Span::styled(
+            format!("{}", tasks_completed),
+            Style::default().fg(Color::Green),
+        ),
         Span::styled(" done", Style::default().fg(Color::DarkGray)),
         Span::styled(")", Style::default().fg(Color::DarkGray)),
         Span::raw("  │  "),
-        Span::styled("Messages: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(format!("{}", messages_count), Style::default().fg(Color::White)),
+        Span::styled(
+            "Messages: ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("{}", messages_count),
+            Style::default().fg(Color::White),
+        ),
     ]);
 
     // Add state metrics if enabled
     if app.data.state_enabled {
-        let state_tasks_ready = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Ready).count();
-        let state_tasks_in_progress = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::InProgress).count();
-        let state_tasks_completed = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Completed).count();
-        let state_tasks_blocked = app.data.state_tasks.iter().filter(|t| t.status == StateTaskStatus::Blocked).count();
+        let state_tasks_ready = app
+            .data
+            .state_tasks
+            .iter()
+            .filter(|t| t.status == StateTaskStatus::Ready)
+            .count();
+        let state_tasks_in_progress = app
+            .data
+            .state_tasks
+            .iter()
+            .filter(|t| t.status == StateTaskStatus::InProgress)
+            .count();
+        let state_tasks_completed = app
+            .data
+            .state_tasks
+            .iter()
+            .filter(|t| t.status == StateTaskStatus::Completed)
+            .count();
+        let state_tasks_blocked = app
+            .data
+            .state_tasks
+            .iter()
+            .filter(|t| t.status == StateTaskStatus::Blocked)
+            .count();
         let state_tasks_total = app.data.state_tasks.len();
 
-        let state_workflows_running = app.data.state_workflows.iter().filter(|w| w.status == WorkflowStatus::Running).count();
-        let state_workflows_completed = app.data.state_workflows.iter().filter(|w| w.status == WorkflowStatus::Completed).count();
+        let state_workflows_running = app
+            .data
+            .state_workflows
+            .iter()
+            .filter(|w| w.status == WorkflowStatus::Running)
+            .count();
+        let state_workflows_completed = app
+            .data
+            .state_workflows
+            .iter()
+            .filter(|w| w.status == WorkflowStatus::Completed)
+            .count();
         let state_workflows_total = app.data.state_workflows.len();
 
         metrics_text.extend(vec![
             Span::raw("  │  "),
-            Span::styled("State Tasks: ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{} ", state_tasks_total), Style::default().fg(Color::White)),
+            Span::styled(
+                "State Tasks: ",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{} ", state_tasks_total),
+                Style::default().fg(Color::White),
+            ),
             Span::styled("(", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", state_tasks_ready), Style::default().fg(Color::Green)),
+            Span::styled(
+                format!("{}", state_tasks_ready),
+                Style::default().fg(Color::Green),
+            ),
             Span::styled(" rdy", Style::default().fg(Color::DarkGray)),
             Span::styled(", ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", state_tasks_in_progress), Style::default().fg(Color::Cyan)),
+            Span::styled(
+                format!("{}", state_tasks_in_progress),
+                Style::default().fg(Color::Cyan),
+            ),
             Span::styled(" prog", Style::default().fg(Color::DarkGray)),
         ]);
 
         if state_tasks_blocked > 0 {
             metrics_text.extend(vec![
                 Span::styled(", ", Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("{}", state_tasks_blocked), Style::default().fg(Color::Red)),
+                Span::styled(
+                    format!("{}", state_tasks_blocked),
+                    Style::default().fg(Color::Red),
+                ),
                 Span::styled(" blk", Style::default().fg(Color::DarkGray)),
             ]);
         }
@@ -161,13 +286,27 @@ fn render_metrics(f: &mut Frame, app: &App, area: Rect) {
         metrics_text.extend(vec![
             Span::styled(")", Style::default().fg(Color::DarkGray)),
             Span::raw("  │  "),
-            Span::styled("Workflows: ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{} ", state_workflows_total), Style::default().fg(Color::White)),
+            Span::styled(
+                "Workflows: ",
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{} ", state_workflows_total),
+                Style::default().fg(Color::White),
+            ),
             Span::styled("(", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", state_workflows_running), Style::default().fg(Color::Cyan)),
+            Span::styled(
+                format!("{}", state_workflows_running),
+                Style::default().fg(Color::Cyan),
+            ),
             Span::styled(" run", Style::default().fg(Color::DarkGray)),
             Span::styled(", ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{}", state_workflows_completed), Style::default().fg(Color::Green)),
+            Span::styled(
+                format!("{}", state_workflows_completed),
+                Style::default().fg(Color::Green),
+            ),
             Span::styled(" done", Style::default().fg(Color::DarkGray)),
             Span::styled(")", Style::default().fg(Color::DarkGray)),
         ]);
@@ -549,11 +688,10 @@ fn render_state(f: &mut Frame, app: &App, area: Rect) {
             .style(Style::default().add_modifier(Modifier::BOLD))
             .bottom_margin(1),
     )
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(format!("Workflows ({} total)", app.data.state_workflows.len())),
-    );
+    .block(Block::default().borders(Borders::ALL).title(format!(
+        "Workflows ({} total)",
+        app.data.state_workflows.len()
+    )));
 
     f.render_widget(workflows_table, chunks[1]);
 }
@@ -576,19 +714,34 @@ fn render_config(f: &mut Frame, app: &App, area: Rect) {
         )]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  1", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  1",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" - Add Agent", Style::default().fg(Color::White)),
         ]),
         Line::from("      Add a new agent to the colony (restart required)"),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  2", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  2",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" - Enable Executor", Style::default().fg(Color::White)),
         ]),
         Line::from("      Enable MCP executor with recommended servers (restart required)"),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  3", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "  3",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" - Add MCP Server", Style::default().fg(Color::White)),
         ]),
         Line::from("      Add an MCP server to the executor (restart required)"),
@@ -605,15 +758,24 @@ fn render_config(f: &mut Frame, app: &App, area: Rect) {
 
     // Add MCP server listings
     let mut config_lines = config_text;
-    let categories = vec!["Filesystem", "Web", "Database", "AI", "Development", "Productivity"];
+    let categories = vec![
+        "Filesystem",
+        "Web",
+        "Database",
+        "AI",
+        "Development",
+        "Productivity",
+    ];
 
     for category in categories {
         let servers = McpRegistry::by_category(category);
         if !servers.is_empty() {
-            config_lines.push(Line::from(vec![
-                Span::styled(format!("  {}:", category), Style::default().fg(Color::Green)),
-            ]));
-            for server in servers.iter().take(3) {  // Show first 3 per category
+            config_lines.push(Line::from(vec![Span::styled(
+                format!("  {}:", category),
+                Style::default().fg(Color::Green),
+            )]));
+            for server in servers.iter().take(3) {
+                // Show first 3 per category
                 config_lines.push(Line::from(vec![
                     Span::styled("    • ", Style::default().fg(Color::DarkGray)),
                     Span::styled(server.id.clone(), Style::default().fg(Color::Yellow)),
@@ -635,7 +797,11 @@ fn render_config(f: &mut Frame, app: &App, area: Rect) {
     ]));
 
     let paragraph = Paragraph::new(config_lines)
-        .block(Block::default().borders(Borders::ALL).title("Configuration"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Configuration"),
+        )
         .scroll((app.scroll_position as u16, 0));
 
     f.render_widget(paragraph, area);
@@ -816,7 +982,11 @@ fn render_compose(f: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Compose Message ")
-        .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        .title_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
 
     let inner_area = block.inner(area);
     f.render_widget(block, area);
@@ -825,9 +995,9 @@ fn render_compose(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(5),      // Message field (multiline, takes most space)
-            Constraint::Length(8),   // Recipient selector
-            Constraint::Length(2),   // Help text
+            Constraint::Min(5),    // Message field (multiline, takes most space)
+            Constraint::Length(8), // Recipient selector
+            Constraint::Length(2), // Help text
         ])
         .split(inner_area);
 
@@ -862,16 +1032,16 @@ fn render_compose(f: &mut Frame, app: &App, area: Rect) {
         lines
     };
 
-    let message_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(if app.compose_focus == 0 {
-            Style::default().fg(Color::Yellow)
-        } else {
-            Style::default().fg(Color::Gray)
-        });
+    let message_block =
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(if app.compose_focus == 0 {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::Gray)
+            });
 
-    let message_para = Paragraph::new(message_text)
-        .block(message_block);
+    let message_para = Paragraph::new(message_text).block(message_block);
     f.render_widget(message_para, chunks[0]);
 
     // Render recipient selector
@@ -889,56 +1059,94 @@ fn render_compose(f: &mut Frame, app: &App, area: Rect) {
             };
 
             let style = if i == app.compose_recipient_index {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
 
             ListItem::new(Line::from(vec![
-                Span::styled(if i == app.compose_recipient_index { "→ " } else { "  " }, style),
+                Span::styled(
+                    if i == app.compose_recipient_index {
+                        "→ "
+                    } else {
+                        "  "
+                    },
+                    style,
+                ),
                 Span::styled(content, style),
             ]))
         })
         .collect();
 
-    let recipient_list = List::new(recipient_items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("{}Recipient (↑↓ to select)", recipient_focus_marker))
-                .title_style(Style::default().fg(Color::Cyan))
-                .border_style(if app.compose_focus == 1 {
-                    Style::default().fg(Color::Yellow)
-                } else {
-                    Style::default().fg(Color::Gray)
-                }),
-        );
+    let recipient_list = List::new(recipient_items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!(
+                "{}Recipient (↑↓ to select)",
+                recipient_focus_marker
+            ))
+            .title_style(Style::default().fg(Color::Cyan))
+            .border_style(if app.compose_focus == 1 {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::Gray)
+            }),
+    );
 
     f.render_widget(recipient_list, chunks[1]);
 
     // Render help text
     let help_text = if app.compose_focus == 0 {
         Line::from(vec![
-            Span::styled("Tab", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Tab",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" select recipient  |  "),
-            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Enter",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" send  |  "),
-            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Esc",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" clear"),
         ])
     } else {
         Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "↑↓",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" navigate  |  "),
-            Span::styled("Tab", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Tab",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" back to message  |  "),
-            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Enter",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" send"),
         ])
     };
 
-    let help_para = Paragraph::new(help_text)
-        .style(Style::default().fg(Color::DarkGray));
+    let help_para = Paragraph::new(help_text).style(Style::default().fg(Color::DarkGray));
     f.render_widget(help_para, chunks[2]);
 }
 
@@ -946,8 +1154,8 @@ fn render_instructions(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(5),      // Instruction input
-            Constraint::Length(8),   // Help text
+            Constraint::Min(5),    // Instruction input
+            Constraint::Length(8), // Help text
         ])
         .split(area);
 
@@ -963,8 +1171,12 @@ fn render_instructions(f: &mut Frame, app: &App, area: Rect) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(" Natural Language Instructions ")
-                .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-                .border_style(Style::default().fg(Color::Yellow))
+                .title_style(
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .border_style(Style::default().fg(Color::Yellow)),
         )
         .style(if app.instructions.is_empty() {
             Style::default().fg(Color::DarkGray)
@@ -975,17 +1187,28 @@ fn render_instructions(f: &mut Frame, app: &App, area: Rect) {
 
     // Help text
     let help_lines = vec![
-        Line::from(vec![
-            Span::styled("Instructions Mode", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Instructions Mode",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
         Line::from("Type natural language instructions and press Enter to execute."),
         Line::from("Instructions are broadcast to all agents as TASK messages."),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Enter",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" execute  |  "),
-            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Esc",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" clear"),
         ]),
     ];
