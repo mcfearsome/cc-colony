@@ -104,7 +104,7 @@ impl Action {
         // If we're in a dialog, capture printable characters
         if in_dialog {
             if let KeyCode::Char(c) = key.code {
-                return Action::CharInput(c);
+                return Action::InputChar(c);
             }
             return Action::None;
         }
@@ -121,6 +121,8 @@ impl Action {
             (KeyCode::Char('4'), KeyModifiers::NONE) => Action::SwitchTab(3),
             (KeyCode::Char('5'), KeyModifiers::NONE) => Action::SwitchTab(4),
             (KeyCode::Char('6'), KeyModifiers::NONE) => Action::SwitchTab(5),
+            (KeyCode::Char('7'), KeyModifiers::NONE) => Action::SwitchTab(6),
+            (KeyCode::Char('8'), KeyModifiers::NONE) => Action::SwitchTab(7),
             (KeyCode::Tab, KeyModifiers::NONE) => Action::SwitchTab(usize::MAX), // Next tab
             (KeyCode::BackTab, KeyModifiers::SHIFT) => Action::SwitchTab(usize::MAX - 1), // Previous tab
 

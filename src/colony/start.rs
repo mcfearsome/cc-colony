@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{agent_skills, executor, layout, messaging, skills, tmux, state_integration, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{agent_skills, executor, layout, messaging, skills, tmux, state_integration, AgentStatus, ColonyConfig, ColonyController};
 use crate::error::ColonyResult;
 use crate::utils;
 

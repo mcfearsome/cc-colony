@@ -30,13 +30,14 @@ pub fn render(f: &mut Frame, app: &App) {
 
     // Render main content based on current tab
     match app.current_tab {
-        Tab::Agents => render_agents(f, app, chunks[1]),
-        Tab::Tasks => render_tasks(f, app, chunks[1]),
-        Tab::Messages => render_messages(f, app, chunks[1]),
-        Tab::State => render_state(f, app, chunks[1]),
-        Tab::Compose => render_compose(f, app, chunks[1]),
-        Tab::Instructions => render_instructions(f, app, chunks[1]),
-        Tab::Help => render_help(f, chunks[1]),
+        Tab::Agents => render_agents(f, app, chunks[2]),
+        Tab::Tasks => render_tasks(f, app, chunks[2]),
+        Tab::Messages => render_messages(f, app, chunks[2]),
+        Tab::State => render_state(f, app, chunks[2]),
+        Tab::Compose => render_compose(f, app, chunks[2]),
+        Tab::Instructions => render_instructions(f, app, chunks[2]),
+        Tab::Config => render_config(f, app, chunks[2]),
+        Tab::Help => render_help(f, chunks[2]),
     }
 
     // Render status bar
@@ -49,7 +50,7 @@ pub fn render(f: &mut Frame, app: &App) {
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
-    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Compose", "6: Instructions", "7: Help"];
+    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Compose", "6: Instructions", "7: Config", "8: Help"];
 
     let tabs = Tabs::new(tab_titles)
         .block(
@@ -557,6 +558,89 @@ fn render_state(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(workflows_table, chunks[1]);
 }
 
+fn render_config(f: &mut Frame, app: &App, area: Rect) {
+    use crate::colony::mcp_registry::McpRegistry;
+
+    let config_text = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Configuration Wizards",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Press Enter to launch a wizard:",
+            Style::default().fg(Color::Cyan),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  1", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Add Agent", Style::default().fg(Color::White)),
+        ]),
+        Line::from("      Add a new agent to the colony (restart required)"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  2", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Enable Executor", Style::default().fg(Color::White)),
+        ]),
+        Line::from("      Enable MCP executor with recommended servers (restart required)"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  3", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Add MCP Server", Style::default().fg(Color::White)),
+        ]),
+        Line::from("      Add an MCP server to the executor (restart required)"),
+        Line::from(""),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Available MCP Servers:",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+    ];
+
+    // Add MCP server listings
+    let mut config_lines = config_text;
+    let categories = vec!["Filesystem", "Web", "Database", "AI", "Development", "Productivity"];
+
+    for category in categories {
+        let servers = McpRegistry::by_category(category);
+        if !servers.is_empty() {
+            config_lines.push(Line::from(vec![
+                Span::styled(format!("  {}:", category), Style::default().fg(Color::Green)),
+            ]));
+            for server in servers.iter().take(3) {  // Show first 3 per category
+                config_lines.push(Line::from(vec![
+                    Span::styled("    • ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(server.id.clone(), Style::default().fg(Color::Yellow)),
+                    Span::styled(" - ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(server.description.clone(), Style::default().fg(Color::Gray)),
+                ]));
+            }
+            config_lines.push(Line::from(""));
+        }
+    }
+
+    config_lines.push(Line::from(""));
+    config_lines.push(Line::from(vec![
+        Span::styled("Note: ", Style::default().fg(Color::Yellow)),
+        Span::styled(
+            "Changes require colony restart to take effect",
+            Style::default().fg(Color::Gray),
+        ),
+    ]));
+
+    let paragraph = Paragraph::new(config_lines)
+        .block(Block::default().borders(Borders::ALL).title("Configuration"))
+        .scroll((app.scroll_position as u16, 0));
+
+    f.render_widget(paragraph, area);
+}
+
 fn render_help(f: &mut Frame, area: Rect) {
     let help_text = vec![
         Line::from(""),
@@ -568,7 +652,7 @@ fn render_help(f: &mut Frame, area: Rect) {
         )]),
         Line::from(""),
         Line::from("  Navigation:"),
-        Line::from("    1-5, Tab       Switch between tabs"),
+        Line::from("    1-8, Tab       Switch between tabs"),
         Line::from("    ↑/↓, j/k       Scroll up/down"),
         Line::from("    PgUp/PgDn      Page up/down"),
         Line::from(""),
@@ -603,7 +687,10 @@ fn render_help(f: &mut Frame, area: Rect) {
         Line::from("  2: Tasks       - Monitor task queue (pending, in progress, completed)"),
         Line::from("  3: Messages    - See message flow between agents and colony"),
         Line::from("  4: State       - Git-backed shared state (tasks, workflows)"),
-        Line::from("  5: Help        - This help screen"),
+        Line::from("  5: Compose     - Compose and send messages to agents"),
+        Line::from("  6: Instructions- Natural language orchestration"),
+        Line::from("  7: Config      - Configuration wizards (add agents, executor, MCP servers)"),
+        Line::from("  8: Help        - This help screen"),
         Line::from(""),
         Line::from(""),
         Line::from(vec![Span::styled(

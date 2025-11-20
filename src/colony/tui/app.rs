@@ -21,6 +21,7 @@ pub enum Tab {
     State,
     Compose,
     Instructions,
+    Config,
     Help,
 }
 
@@ -33,7 +34,8 @@ impl Tab {
             Tab::State => 3,
             Tab::Compose => 4,
             Tab::Instructions => 5,
-            Tab::Help => 6,
+            Tab::Config => 6,
+            Tab::Help => 7,
         }
     }
 
@@ -45,16 +47,18 @@ impl Tab {
             3 => Tab::State,
             4 => Tab::Compose,
             5 => Tab::Instructions,
-            6 => Tab::Help,
+            6 => Tab::Config,
+            7 => Tab::Help,
+            _ => Tab::Agents, // Default to Agents for invalid indices
         }
     }
 
     pub fn next(&self) -> Self {
-        Self::from_index((self.index() + 1) % 5)
+        Self::from_index((self.index() + 1) % 8)
     }
 
     pub fn previous(&self) -> Self {
-        Self::from_index((self.index() + 5) % 6)
+        Self::from_index((self.index() + 7) % 8)
     }
 }
 
@@ -64,6 +68,10 @@ pub enum Dialog {
     BroadcastMessage,
     CreateTask { step: usize },
     SendMessage { step: usize },
+    AddAgent { step: usize },
+    AddExecutor { step: usize },
+    AddMcpServer { step: usize },
+    ConfigMenu,
 }
 
 impl Dialog {
@@ -73,6 +81,10 @@ impl Dialog {
             Dialog::BroadcastMessage => "Broadcast Message to All Agents",
             Dialog::CreateTask { .. } => "Create New Task",
             Dialog::SendMessage { .. } => "Send Message to Agent",
+            Dialog::AddAgent { .. } => "Add New Agent",
+            Dialog::AddExecutor { .. } => "Enable MCP Executor",
+            Dialog::AddMcpServer { .. } => "Add MCP Server",
+            Dialog::ConfigMenu => "Configuration Menu",
         }
     }
 
@@ -93,6 +105,26 @@ impl Dialog {
                 1 => "Message:",
                 _ => "",
             },
+            Dialog::AddAgent { step } => match step {
+                0 => "Agent ID:",
+                1 => "Role:",
+                2 => "Focus:",
+                3 => "Model (sonnet/opus/haiku):",
+                4 => "Worktree name (optional):",
+                _ => "",
+            },
+            Dialog::AddExecutor { step } => match step {
+                0 => "Enable executor? (y/n):",
+                1 => "Select MCP servers (see MCP registry, comma-separated IDs):",
+                _ => "",
+            },
+            Dialog::AddMcpServer { step } => match step {
+                0 => "MCP Server ID (or select from registry with '?'):",
+                1 => "Command:",
+                2 => "Args (comma-separated, optional):",
+                _ => "",
+            },
+            Dialog::ConfigMenu => "Select option: 1=Add Agent, 2=Add Executor, 3=Add MCP Server, ESC=Cancel",
         }
     }
 
@@ -102,6 +134,10 @@ impl Dialog {
             Dialog::BroadcastMessage => 1,
             Dialog::CreateTask { .. } => 5,
             Dialog::SendMessage { .. } => 2,
+            Dialog::AddAgent { .. } => 5,
+            Dialog::AddExecutor { .. } => 2,
+            Dialog::AddMcpServer { .. } => 3,
+            Dialog::ConfigMenu => 1,
         }
     }
 }
@@ -178,7 +214,7 @@ impl App {
             match action {
                 Action::Cancel => self.cancel_dialog(),
                 Action::Confirm => self.confirm_dialog(),
-                Action::CharInput(c) => self.input_buffer.push(c),
+                Action::InputChar(c) => self.input_buffer.push(c),
                 Action::Backspace => {
                     self.input_buffer.pop();
                 }
@@ -273,6 +309,10 @@ impl App {
                     self.send_message();
                 } else if self.current_tab == Tab::Instructions {
                     self.execute_instructions();
+                } else if self.current_tab == Tab::Config {
+                    // Show config menu
+                    self.active_dialog = Some(Dialog::ConfigMenu);
+                    self.input_buffer.clear();
                 }
             }
             Action::InputChar(c) => {
@@ -351,6 +391,75 @@ impl App {
                     } else {
                         // Final step - execute
                         self.execute_send_message();
+                        self.active_dialog = None;
+                        self.dialog_inputs.clear();
+                    }
+                }
+                Dialog::ConfigMenu => {
+                    // Handle menu selection
+                    let choice = self.input_buffer.trim().to_string();
+                    self.input_buffer.clear();
+                    self.active_dialog = None;
+
+                    match choice.as_str() {
+                        "1" => {
+                            self.active_dialog = Some(Dialog::AddAgent { step: 0 });
+                            self.dialog_inputs.clear();
+                        }
+                        "2" => {
+                            self.active_dialog = Some(Dialog::AddExecutor { step: 0 });
+                            self.dialog_inputs.clear();
+                        }
+                        "3" => {
+                            self.active_dialog = Some(Dialog::AddMcpServer { step: 0 });
+                            self.dialog_inputs.clear();
+                        }
+                        _ => {
+                            self.set_status("Invalid choice", true);
+                        }
+                    }
+                }
+                Dialog::AddAgent { step } => {
+                    // Multi-step dialog
+                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.input_buffer.clear();
+
+                    if *step + 1 < dialog.total_steps() {
+                        // Move to next step
+                        self.active_dialog = Some(Dialog::AddAgent { step: step + 1 });
+                    } else {
+                        // Final step - execute
+                        self.execute_add_agent();
+                        self.active_dialog = None;
+                        self.dialog_inputs.clear();
+                    }
+                }
+                Dialog::AddExecutor { step } => {
+                    // Multi-step dialog
+                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.input_buffer.clear();
+
+                    if *step + 1 < dialog.total_steps() {
+                        // Move to next step
+                        self.active_dialog = Some(Dialog::AddExecutor { step: step + 1 });
+                    } else {
+                        // Final step - execute
+                        self.execute_add_executor();
+                        self.active_dialog = None;
+                        self.dialog_inputs.clear();
+                    }
+                }
+                Dialog::AddMcpServer { step } => {
+                    // Multi-step dialog
+                    self.dialog_inputs.push(self.input_buffer.trim().to_string());
+                    self.input_buffer.clear();
+
+                    if *step + 1 < dialog.total_steps() {
+                        // Move to next step
+                        self.active_dialog = Some(Dialog::AddMcpServer { step: step + 1 });
+                    } else {
+                        // Final step - execute
+                        self.execute_add_mcp_server();
                         self.active_dialog = None;
                         self.dialog_inputs.clear();
                     }
@@ -487,6 +596,209 @@ impl App {
                 Err(e) => self.set_status(&format!("Error: {}", e), true),
             },
             Err(e) => self.set_status(&format!("Error: {}", e), true),
+        }
+    }
+
+    /// Execute add agent
+    fn execute_add_agent(&mut self) {
+        use crate::colony::config::{AgentConfig, ColonyConfig};
+        use std::collections::HashMap;
+
+        if self.dialog_inputs.len() < 5 {
+            self.set_status("Not enough inputs for add agent", true);
+            return;
+        }
+
+        let agent_id = &self.dialog_inputs[0];
+        let role = &self.dialog_inputs[1];
+        let focus = &self.dialog_inputs[2];
+        let model_input = &self.dialog_inputs[3];
+        let worktree = if self.dialog_inputs[4].is_empty() {
+            None
+        } else {
+            Some(self.dialog_inputs[4].clone())
+        };
+
+        // Map model shorthand to full model name
+        let model = match model_input.to_lowercase().as_str() {
+            "opus" => "claude-opus-4-20250514",
+            "haiku" => "claude-3-5-haiku-20241022",
+            "sonnet" | "" => "claude-sonnet-4-20250514",
+            _ => model_input.as_str(),
+        };
+
+        let new_agent = AgentConfig {
+            id: agent_id.clone(),
+            role: role.clone(),
+            focus: focus.clone(),
+            model: model.to_string(),
+            directory: None,
+            worktree,
+            env: None,
+            mcp_servers: None,
+            instructions: None,
+            startup_prompt: None,
+            capabilities: None,
+            nudge: None,
+        };
+
+        // Load config, add agent, save
+        let config_path = Path::new(&self.config_path);
+        match ColonyConfig::load(config_path) {
+            Ok(mut config) => {
+                // Check for duplicate ID
+                if config.agents.iter().any(|a| a.id == *agent_id) {
+                    self.set_status(&format!("Agent ID '{}' already exists", agent_id), true);
+                    return;
+                }
+
+                config.agents.push(new_agent);
+                match config.save(config_path) {
+                    Ok(_) => {
+                        self.set_status(&format!("Agent '{}' added successfully. Restart colony to activate.", agent_id), false);
+                        self.refresh_data();
+                    }
+                    Err(e) => self.set_status(&format!("Error saving config: {}", e), true),
+                }
+            }
+            Err(e) => self.set_status(&format!("Error loading config: {}", e), true),
+        }
+    }
+
+    /// Execute add executor
+    fn execute_add_executor(&mut self) {
+        use crate::colony::config::{ColonyConfig, ExecutorConfig};
+        use crate::colony::mcp_registry::McpRegistry;
+        use std::collections::HashMap;
+
+        if self.dialog_inputs.len() < 2 {
+            self.set_status("Not enough inputs for add executor", true);
+            return;
+        }
+
+        let enable = self.dialog_inputs[0].to_lowercase();
+        if enable != "y" && enable != "yes" {
+            self.set_status("Executor not enabled", false);
+            return;
+        }
+
+        let mcp_server_ids = &self.dialog_inputs[1];
+
+        // Parse MCP server IDs
+        let mut mcp_servers = HashMap::new();
+        let mut server_ids = Vec::new();
+
+        if !mcp_server_ids.is_empty() {
+            for id in mcp_server_ids.split(',') {
+                let id = id.trim();
+                if let Some(server) = McpRegistry::get(id) {
+                    mcp_servers.insert(server.id.clone(), server.config);
+                    server_ids.push(id.to_string());
+                } else {
+                    self.set_status(&format!("Unknown MCP server ID: {}", id), true);
+                    return;
+                }
+            }
+
+            // Check for overlaps and show warnings
+            let warnings = McpRegistry::detect_overlaps(&server_ids);
+            if !warnings.is_empty() {
+                let warning_msg = format!("Overlaps detected: {}", warnings.join("; "));
+                self.set_status(&warning_msg, false);
+                // Still proceed but warn the user
+            }
+        }
+
+        let executor = ExecutorConfig {
+            enabled: true,
+            agent_id: "mcp-executor".to_string(),
+            mcp_servers: if mcp_servers.is_empty() { None } else { Some(mcp_servers) },
+            languages: vec!["typescript".to_string(), "python".to_string()],
+        };
+
+        // Load config, set executor, save
+        let config_path = Path::new(&self.config_path);
+        match ColonyConfig::load(config_path) {
+            Ok(mut config) => {
+                config.executor = Some(executor);
+                match config.save(config_path) {
+                    Ok(_) => {
+                        self.set_status("Executor enabled successfully. Restart colony to activate.", false);
+                        self.refresh_data();
+                    }
+                    Err(e) => self.set_status(&format!("Error saving config: {}", e), true),
+                }
+            }
+            Err(e) => self.set_status(&format!("Error loading config: {}", e), true),
+        }
+    }
+
+    /// Execute add MCP server
+    fn execute_add_mcp_server(&mut self) {
+        use crate::colony::config::{ColonyConfig, McpServerConfig};
+        use crate::colony::mcp_registry::McpRegistry;
+        use std::collections::HashMap;
+
+        if self.dialog_inputs.len() < 3 {
+            self.set_status("Not enough inputs for add MCP server", true);
+            return;
+        }
+
+        let server_id = &self.dialog_inputs[0];
+
+        // Check if user wants to select from registry
+        if server_id == "?" {
+            // Show available servers
+            let servers = McpRegistry::all();
+            let server_list: Vec<String> = servers.iter()
+                .map(|s| format!("{}: {} - {}", s.id, s.name, s.description))
+                .collect();
+            self.set_status(&format!("Available MCP servers: {}", server_list.join(", ")), false);
+            return;
+        }
+
+        // Try to get from registry first
+        let server_config = if let Some(registry_server) = McpRegistry::get(server_id) {
+            registry_server.config
+        } else {
+            // Manual configuration
+            let command = &self.dialog_inputs[1];
+            let args_str = &self.dialog_inputs[2];
+
+            let args = if args_str.is_empty() {
+                None
+            } else {
+                Some(args_str.split(',').map(|s| s.trim().to_string()).collect())
+            };
+
+            McpServerConfig {
+                command: command.clone(),
+                args,
+                env: None,
+            }
+        };
+
+        // Load config, add MCP server to executor, save
+        let config_path = Path::new(&self.config_path);
+        match ColonyConfig::load(config_path) {
+            Ok(mut config) => {
+                if let Some(ref mut executor) = config.executor {
+                    let mut servers = executor.mcp_servers.take().unwrap_or_default();
+                    servers.insert(server_id.clone(), server_config);
+                    executor.mcp_servers = Some(servers);
+
+                    match config.save(config_path) {
+                        Ok(_) => {
+                            self.set_status(&format!("MCP server '{}' added to executor. Restart colony to activate.", server_id), false);
+                            self.refresh_data();
+                        }
+                        Err(e) => self.set_status(&format!("Error saving config: {}", e), true),
+                    }
+                } else {
+                    self.set_status("Executor not enabled. Enable executor first.", true);
+                }
+            }
+            Err(e) => self.set_status(&format!("Error loading config: {}", e), true),
         }
     }
 

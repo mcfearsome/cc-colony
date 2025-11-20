@@ -17,6 +17,7 @@ pub mod init;
 pub mod logging;
 pub mod layout;
 pub mod logs;
+pub mod mcp_registry;
 pub mod messages_cmd;
 pub mod messaging;
 pub mod metrics;
