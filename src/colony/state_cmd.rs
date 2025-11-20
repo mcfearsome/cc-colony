@@ -1,7 +1,7 @@
 //! CLI commands for shared state management
 
 use crate::colony::state::{
-    GitBackedState, MemoryEntry, MemoryType, SharedStateConfig, Task, TaskIdGenerator, TaskStatus,
+    GitBackedState, MemoryEntry, MemoryType, Task, TaskStatus,
     Workflow, WorkflowStatus,
 };
 use crate::error::{ColonyError, ColonyResult};

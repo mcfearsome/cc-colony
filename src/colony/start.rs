@@ -147,9 +147,7 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         if agent.config.has_mcp_servers() {
             match create_agent_settings(agent).await {
                 Ok(()) => {
-                    utils::info(&format!(
-                        "  Created settings.json with MCP server configuration"
-                    ));
+                    utils::info(&"  Created settings.json with MCP server configuration".to_string());
                 }
                 Err(e) => {
                     utils::warning(&format!("  Failed to create settings.json: {}", e));
@@ -752,7 +750,7 @@ Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
             .config()
             .executor
             .as_ref()
-            .map_or(false, |e| e.enabled);
+            .is_some_and(|e| e.enabled);
         telemetry_client
             .track_colony_started(agent_count, has_executor)
             .await;
@@ -806,7 +804,7 @@ async fn create_startup_prompt(
     } else {
         // Build repository context section if available
         let repo_context = if let Some(repo_cfg) = repo_config {
-            let mut context = format!("\n## Repository Context\n\n");
+            let mut context = "\n## Repository Context\n\n".to_string();
             context.push_str(&format!("**Type**: {}\n", repo_cfg.repo_type.description()));
 
             if let Some(purpose) = &repo_cfg.purpose {
@@ -817,7 +815,7 @@ async fn create_startup_prompt(
                 context.push_str(&format!("\n{}\n", ctx));
             }
 
-            context.push_str("\n");
+            context.push('\n');
             context
         } else {
             String::new()
@@ -971,7 +969,7 @@ For detailed messaging guidance, see the Colony Message skill:
         if let Some(instructions) = &agent.config.instructions {
             prompt.push_str("\n\n---\n\n## Additional Instructions\n\n");
             prompt.push_str(instructions);
-            prompt.push_str("\n");
+            prompt.push('\n');
         }
 
         prompt.push_str("\nNow get started on your assigned work! Remember to check for messages from your teammates.\n");
@@ -1002,9 +1000,7 @@ async fn create_agent_settings(agent: &crate::colony::Agent) -> ColonyResult<()>
         match tokio::fs::read_to_string(&worktree_settings_path).await {
             Ok(contents) => match serde_json::from_str::<Value>(&contents) {
                 Ok(existing_settings) => {
-                    utils::info(&format!(
-                        "  Found existing .claude/settings.json in working directory, merging..."
-                    ));
+                    utils::info(&"  Found existing .claude/settings.json in working directory, merging...".to_string());
                     merged_settings = existing_settings;
                 }
                 Err(e) => {
@@ -1046,7 +1042,7 @@ async fn create_agent_settings(agent: &crate::colony::Agent) -> ColonyResult<()>
     }
 
     // If merged_settings is still empty, use agent settings directly
-    if merged_settings.as_object().map_or(true, |o| o.is_empty()) {
+    if merged_settings.as_object().is_none_or(|o| o.is_empty()) {
         merged_settings = agent_settings;
     }
 
@@ -1120,7 +1116,7 @@ fn setup_messaging_infrastructure(controller: &ColonyController) -> ColonyResult
 
 /// Set up shared state infrastructure
 async fn setup_state_infrastructure(controller: &ColonyController) -> ColonyResult<()> {
-    use crate::colony::state::{GitBackedState, SharedStateConfig};
+    use crate::colony::state::GitBackedState;
 
     let colony_root = controller.colony_root();
     let config = controller.config();

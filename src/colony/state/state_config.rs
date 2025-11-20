@@ -6,34 +6,28 @@ use std::path::PathBuf;
 /// State backend type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum StateBackend {
     /// Git-backed state storage
+    #[default]
     GitBacked,
     /// In-memory only (for testing)
     Memory,
 }
 
-impl Default for StateBackend {
-    fn default() -> Self {
-        StateBackend::GitBacked
-    }
-}
 
 /// State storage location
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum StateLocation {
     /// State stored in repository (`.colony/state/`)
+    #[default]
     InRepo,
     /// State stored in external repository
     External,
 }
 
-impl Default for StateLocation {
-    fn default() -> Self {
-        StateLocation::InRepo
-    }
-}
 
 /// State file schema configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

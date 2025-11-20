@@ -3,7 +3,6 @@ use crate::error::ColonyResult;
 use crate::utils;
 use chrono::{Duration, Utc};
 use colored::Colorize;
-use std::collections::HashMap;
 
 /// List all registered metrics
 pub fn list_metrics() -> ColonyResult<()> {

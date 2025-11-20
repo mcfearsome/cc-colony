@@ -31,7 +31,7 @@ pub async fn read_jsonl<T: DeserializeOwned>(path: &Path) -> ColonyResult<Vec<T>
             continue;
         }
 
-        let entry: T = serde_json::from_str(&line).map_err(|e| {
+        let entry: T = serde_json::from_str(line).map_err(|e| {
             ColonyError::Colony(format!("Failed to parse JSON from {:?}: {}", path, e))
         })?;
 

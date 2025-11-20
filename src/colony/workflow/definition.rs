@@ -162,13 +162,12 @@ fn validate_dependencies(definition: &WorkflowDefinition) -> ColonyResult<()> {
     let mut rec_stack = HashSet::new();
 
     for step in &definition.steps {
-        if !visited.contains(step.name.as_str()) {
-            if has_cycle(&graph, &step.name, &mut visited, &mut rec_stack) {
+        if !visited.contains(step.name.as_str())
+            && has_cycle(&graph, &step.name, &mut visited, &mut rec_stack) {
                 return Err(ColonyError::Colony(
                     "Workflow contains a dependency cycle".to_string(),
                 ));
             }
-        }
     }
 
     Ok(())

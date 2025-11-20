@@ -7,6 +7,7 @@ use crate::error::ColonyResult;
 
 /// Configuration for telemetry collection
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct TelemetryConfig {
     /// Whether telemetry is enabled (opt-in, defaults to false)
     #[serde(default)]
@@ -19,15 +20,6 @@ pub struct TelemetryConfig {
     pub endpoint: Option<String>,
 }
 
-impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            anonymous_id: None,
-            endpoint: None,
-        }
-    }
-}
 
 impl TelemetryConfig {
     /// Get or generate anonymous ID
@@ -124,8 +116,10 @@ pub struct AgentConfig {
 /// Repository type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum RepositoryType {
     /// Source code repository - traditional software development
+    #[default]
     Source,
     /// Memory/knowledge base - storing notes, research, context
     Memory,
@@ -137,11 +131,6 @@ pub enum RepositoryType {
     Documentation,
 }
 
-impl Default for RepositoryType {
-    fn default() -> Self {
-        RepositoryType::Source
-    }
-}
 
 impl RepositoryType {
     /// Get a human-readable description of this repository type
@@ -270,7 +259,7 @@ impl ExecutorConfig {
 
     /// Check if this executor has MCP server configuration
     pub fn has_mcp_servers(&self) -> bool {
-        self.mcp_servers.as_ref().map_or(false, |s| !s.is_empty())
+        self.mcp_servers.as_ref().is_some_and(|s| !s.is_empty())
     }
 }
 
@@ -342,7 +331,7 @@ impl AgentConfig {
 
     /// Check if this agent has MCP server configuration
     pub fn has_mcp_servers(&self) -> bool {
-        self.mcp_servers.as_ref().map_or(false, |s| !s.is_empty())
+        self.mcp_servers.as_ref().is_some_and(|s| !s.is_empty())
     }
 
     /// Get resolved capabilities (agent-specific merged with global)

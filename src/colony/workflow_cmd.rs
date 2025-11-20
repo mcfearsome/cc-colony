@@ -1,6 +1,6 @@
 use crate::colony::state::TaskIdGenerator;
 use crate::colony::workflow::{
-    topological_sort, WorkflowDefinition, WorkflowRun, WorkflowRunStatus, WorkflowStorage,
+    topological_sort, WorkflowRun, WorkflowRunStatus, WorkflowStorage,
 };
 use crate::error::ColonyResult;
 use crate::utils;

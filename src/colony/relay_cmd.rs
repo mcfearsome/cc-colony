@@ -70,7 +70,7 @@ pub async fn connect(url: Option<String>, token: Option<String>) -> ColonyResult
     let colony_id = format!(
         "{}-{}",
         colony_name,
-        uuid::Uuid::new_v4().to_string()[..8].to_string()
+        &uuid::Uuid::new_v4().to_string()[..8]
     );
 
     // Save relay config

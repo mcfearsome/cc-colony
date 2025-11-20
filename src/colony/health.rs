@@ -295,7 +295,7 @@ fn check_message_queue() -> Result<usize, String> {
 
     if let Ok(entries) = std::fs::read_dir(messages_dir) {
         for entry in entries.flatten() {
-            if entry.file_type().ok().map_or(false, |t| t.is_dir()) {
+            if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
                 let inbox_path = entry.path();
                 if let Ok(messages) = std::fs::read_dir(&inbox_path) {
                     total += messages.count();

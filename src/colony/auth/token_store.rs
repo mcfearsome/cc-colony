@@ -1,6 +1,5 @@
 use super::oauth::OAuthToken;
 use crate::error::ColonyResult;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 

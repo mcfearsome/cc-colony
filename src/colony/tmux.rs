@@ -383,7 +383,7 @@ pub fn resize_pane_percentage(
             .arg("-t")
             .arg(&target)
             .arg("-x")
-            .arg(&format!("{}%", width))
+            .arg(format!("{}%", width))
             .output()?;
 
         if !output.status.success() {
@@ -400,7 +400,7 @@ pub fn resize_pane_percentage(
             .arg("-t")
             .arg(&target)
             .arg("-y")
-            .arg(&format!("{}%", height))
+            .arg(format!("{}%", height))
             .output()?;
 
         if !output.status.success() {

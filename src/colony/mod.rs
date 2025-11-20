@@ -47,6 +47,5 @@ pub mod worktree;
 
 // Re-export commonly used types
 pub use agent::{Agent, AgentStatus};
-pub use auth::AuthConfig;
 pub use config::ColonyConfig;
 pub use controller::ColonyController;

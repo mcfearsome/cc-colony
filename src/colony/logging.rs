@@ -136,6 +136,7 @@ impl LogEntry {
 
 /// Log filter criteria
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct LogFilter {
     pub min_level: Option<LogLevel>,
     pub agent_id: Option<String>,
@@ -144,17 +145,6 @@ pub struct LogFilter {
     pub until: Option<DateTime<Utc>>,
 }
 
-impl Default for LogFilter {
-    fn default() -> Self {
-        Self {
-            min_level: None,
-            agent_id: None,
-            pattern: None,
-            since: None,
-            until: None,
-        }
-    }
-}
 
 impl LogFilter {
     pub fn matches(&self, entry: &LogEntry) -> bool {

@@ -113,7 +113,7 @@ impl StateCache {
                 ColonyError::InvalidConfig(format!("Failed to check cache metadata: {}", e))
             })?;
 
-        Ok(cached_nanos.map_or(true, |cached| file_nanos > cached))
+        Ok(cached_nanos.is_none_or(|cached| file_nanos > cached))
     }
 
     /// Mark cache as synced for a schema

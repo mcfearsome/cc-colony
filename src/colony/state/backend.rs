@@ -5,8 +5,7 @@ use crate::error::{ColonyError, ColonyResult};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
-use tokio::time::sleep;
+use std::time::SystemTime;
 
 /// Git-backed state backend
 pub struct GitBackedState {
@@ -81,7 +80,7 @@ impl GitBackedState {
                 .output()
                 .ok();
 
-            let has_remote = output.map_or(false, |o| o.status.success());
+            let has_remote = output.is_some_and(|o| o.status.success());
 
             if !has_remote {
                 // Add remote

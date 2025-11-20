@@ -10,12 +10,10 @@ mod state_config;
 mod types;
 
 pub use backend::GitBackedState;
-pub use cache::StateCache;
-pub use state_config::{SharedStateConfig, StateBackend, StateLocation, StateSchema};
+pub use state_config::SharedStateConfig;
 pub use types::{
     MemoryEntry, MemoryType, StepStatus, Task, TaskIdGenerator, TaskStatus, Workflow,
-    WorkflowStatus, WorkflowStep,
+    WorkflowStatus,
 };
 
 // Re-export for convenience
-pub use jsonl::{append_jsonl, read_jsonl, write_jsonl};

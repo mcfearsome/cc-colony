@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::colony::config::{AgentConfig, ColonyConfig, ExecutorConfig, McpServerConfig};
+use crate::colony::config::{AgentConfig, ColonyConfig, ExecutorConfig};
 use crate::colony::controller::ColonyController;
 use crate::colony::mcp_registry::McpRegistry;
 use crate::colony::tasks::queue::TaskQueue;

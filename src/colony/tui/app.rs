@@ -606,7 +606,7 @@ impl App {
     /// Execute add agent
     fn execute_add_agent(&mut self) {
         use crate::colony::config::{AgentConfig, ColonyConfig};
-        use std::collections::HashMap;
+        
 
         if self.dialog_inputs.len() < 5 {
             self.set_status("Not enough inputs for add agent", true);
@@ -754,7 +754,7 @@ impl App {
     fn execute_add_mcp_server(&mut self) {
         use crate::colony::config::{ColonyConfig, McpServerConfig};
         use crate::colony::mcp_registry::McpRegistry;
-        use std::collections::HashMap;
+        
 
         if self.dialog_inputs.len() < 3 {
             self.set_status("Not enough inputs for add MCP server", true);

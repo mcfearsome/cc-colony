@@ -46,9 +46,9 @@ pub async fn test_bedrock_access(region: &str, profile: &str) -> ColonyResult<()
     // For now, just check if AWS CLI is available and credentials are configured
 
     let output = tokio::process::Command::new("aws")
-        .args(&["sts", "get-caller-identity"])
-        .args(&["--region", region])
-        .args(&["--profile", profile])
+        .args(["sts", "get-caller-identity"])
+        .args(["--region", region])
+        .args(["--profile", profile])
         .output()
         .await
         .map_err(|e| {

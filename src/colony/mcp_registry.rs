@@ -414,28 +414,28 @@ impl McpRegistry {
         // Recommended servers for MCP executor
         vec!["filesystem", "fetch", "puppeteer", "memory"]
             .into_iter()
-            .filter_map(|id| Self::get(id))
+            .filter_map(Self::get)
             .collect()
     }
 
     pub fn for_web_development() -> Vec<McpServer> {
         vec!["filesystem", "fetch", "puppeteer", "github"]
             .into_iter()
-            .filter_map(|id| Self::get(id))
+            .filter_map(Self::get)
             .collect()
     }
 
     pub fn for_data_analysis() -> Vec<McpServer> {
         vec!["filesystem", "postgres", "sqlite", "fetch"]
             .into_iter()
-            .filter_map(|id| Self::get(id))
+            .filter_map(Self::get)
             .collect()
     }
 
     pub fn for_automation() -> Vec<McpServer> {
         vec!["filesystem", "fetch", "slack", "github", "puppeteer"]
             .into_iter()
-            .filter_map(|id| Self::get(id))
+            .filter_map(Self::get)
             .collect()
     }
 
