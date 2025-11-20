@@ -654,6 +654,8 @@ mod tests {
                     mcp_servers: None,
                     instructions: None,
                     startup_prompt: None,
+                    capabilities: None,
+                    nudge: None,
                 },
                 AgentConfig {
                     id: "test".to_string(),

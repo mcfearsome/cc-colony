@@ -491,6 +491,28 @@ fn run_quick_wizard() -> ColonyResult<ColonyConfig> {
 
         let mcp_servers = if use_recommended {
             let mut servers = HashMap::new();
+            let server_ids: Vec<String> = default_mcp_servers.iter().map(|s| s.id.clone()).collect();
+
+            // Check for overlaps and show warnings
+            let warnings = McpRegistry::detect_overlaps(&server_ids);
+            if !warnings.is_empty() {
+                println!();
+                println!("{}", "Overlap Analysis:".yellow());
+                for warning in warnings {
+                    println!("  {}", warning);
+                }
+            }
+
+            // Show complementary suggestions
+            let suggestions = McpRegistry::suggest_complementary(&server_ids);
+            if !suggestions.is_empty() {
+                println!();
+                println!("{}", "Suggested additions:".cyan());
+                for (id, reason) in suggestions {
+                    println!("  • {} - {}", id.cyan(), reason);
+                }
+            }
+
             for server in default_mcp_servers {
                 servers.insert(server.id.clone(), server.config);
             }

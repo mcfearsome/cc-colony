@@ -307,6 +307,95 @@ impl McpRegistry {
                 },
                 notes: Some("Requires GOOGLE_MAPS_API_KEY environment variable".to_string()),
             },
+
+            // Code Index
+            McpServer {
+                id: "code-index".to_string(),
+                name: "Code Index".to_string(),
+                description: "Index and search codebase with semantic code understanding".to_string(),
+                category: "Development".to_string(),
+                config: McpServerConfig {
+                    command: "npx".to_string(),
+                    args: Some(vec![
+                        "-y".to_string(),
+                        "code-index-mcp".to_string(),
+                    ]),
+                    env: None,
+                },
+                notes: Some("Provides semantic code search and navigation".to_string()),
+            },
+
+            // Figma
+            McpServer {
+                id: "figma".to_string(),
+                name: "Figma".to_string(),
+                description: "Access and interact with Figma designs and components".to_string(),
+                category: "Development".to_string(),
+                config: McpServerConfig {
+                    command: "npx".to_string(),
+                    args: Some(vec![
+                        "-y".to_string(),
+                        "@modelcontextprotocol/server-figma".to_string(),
+                    ]),
+                    env: Some({
+                        let mut env = HashMap::new();
+                        env.insert("FIGMA_ACCESS_TOKEN".to_string(), "your-figma-token".to_string());
+                        env
+                    }),
+                },
+                notes: Some("Requires FIGMA_ACCESS_TOKEN environment variable".to_string()),
+            },
+
+            // Desktop Commander
+            McpServer {
+                id: "desktop-commander".to_string(),
+                name: "Desktop Commander".to_string(),
+                description: "Automate desktop applications and system interactions".to_string(),
+                category: "Productivity".to_string(),
+                config: McpServerConfig {
+                    command: "npx".to_string(),
+                    args: Some(vec![
+                        "-y".to_string(),
+                        "desktop-commander-mcp".to_string(),
+                    ]),
+                    env: None,
+                },
+                notes: Some("Provides desktop automation capabilities (use with caution)".to_string()),
+            },
+
+            // Serena
+            McpServer {
+                id: "serena".to_string(),
+                name: "Serena".to_string(),
+                description: "Intelligent file search and workspace navigation".to_string(),
+                category: "Productivity".to_string(),
+                config: McpServerConfig {
+                    command: "npx".to_string(),
+                    args: Some(vec![
+                        "-y".to_string(),
+                        "serena-mcp".to_string(),
+                    ]),
+                    env: None,
+                },
+                notes: Some("Enhanced file finding with semantic understanding".to_string()),
+            },
+
+            // Context7
+            McpServer {
+                id: "context7".to_string(),
+                name: "Context7".to_string(),
+                description: "Advanced context management and retrieval for AI workflows".to_string(),
+                category: "AI".to_string(),
+                config: McpServerConfig {
+                    command: "npx".to_string(),
+                    args: Some(vec![
+                        "-y".to_string(),
+                        "context7-mcp".to_string(),
+                    ]),
+                    env: None,
+                },
+                notes: Some("Manages conversation context and knowledge retrieval".to_string()),
+            },
         ]
     }
 
@@ -364,6 +453,119 @@ impl McpRegistry {
             .filter_map(|id| Self::get(id))
             .collect()
     }
+
+    /// Detect overlapping functionality between MCP servers
+    /// Returns warnings about potential conflicts or redundancy
+    pub fn detect_overlaps(server_ids: &[String]) -> Vec<String> {
+        let mut warnings = Vec::new();
+
+        // Define overlap groups (servers that provide similar functionality)
+        let overlap_groups = vec![
+            (
+                vec!["filesystem", "serena"],
+                "Both provide file access. 'serena' adds semantic search on top of basic filesystem access.",
+            ),
+            (
+                vec!["filesystem", "gdrive"],
+                "Both provide file storage access. Consider which storage location you need.",
+            ),
+            (
+                vec!["memory", "context7"],
+                "Both provide context/memory management. 'context7' is more advanced for AI workflows.",
+            ),
+            (
+                vec!["fetch", "puppeteer"],
+                "Both can retrieve web content. 'puppeteer' provides browser automation, 'fetch' is simpler for API calls.",
+            ),
+            (
+                vec!["desktop-commander", "puppeteer"],
+                "Both provide automation. 'puppeteer' is web-focused, 'desktop-commander' is for desktop apps.",
+            ),
+            (
+                vec!["sequential-thinking", "context7"],
+                "Both enhance AI reasoning. May be redundant unless you need both specialized capabilities.",
+            ),
+            (
+                vec!["postgres", "sqlite"],
+                "Both provide database access. Choose based on your database type.",
+            ),
+        ];
+
+        // Check for overlaps
+        for (group, warning) in overlap_groups {
+            let matching: Vec<_> = group
+                .iter()
+                .filter(|id| server_ids.contains(&id.to_string()))
+                .collect();
+
+            if matching.len() > 1 {
+                warnings.push(format!(
+                    "⚠️  Overlap detected: {} - {}",
+                    matching
+                        .iter()
+                        .map(|s| format!("'{}'", s))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    warning
+                ));
+            }
+        }
+
+        // Check for too many servers (performance warning)
+        if server_ids.len() > 8 {
+            warnings.push(format!(
+                "⚠️  Performance: {} MCP servers configured. Consider if all are needed (each adds overhead).",
+                server_ids.len()
+            ));
+        }
+
+        warnings
+    }
+
+    /// Suggest complementary servers based on selected servers
+    pub fn suggest_complementary(server_ids: &[String]) -> Vec<(String, String)> {
+        let mut suggestions = Vec::new();
+
+        // Common pairings
+        if server_ids.contains(&"github".to_string()) && !server_ids.contains(&"code-index".to_string()) {
+            suggestions.push((
+                "code-index".to_string(),
+                "Adds semantic code search to complement GitHub integration".to_string(),
+            ));
+        }
+
+        if server_ids.contains(&"figma".to_string()) && !server_ids.contains(&"puppeteer".to_string()) {
+            suggestions.push((
+                "puppeteer".to_string(),
+                "Can automate Figma workflows in browser".to_string(),
+            ));
+        }
+
+        if (server_ids.contains(&"postgres".to_string()) || server_ids.contains(&"sqlite".to_string()))
+            && !server_ids.contains(&"filesystem".to_string())
+        {
+            suggestions.push((
+                "filesystem".to_string(),
+                "Useful for database backups and schema file access".to_string(),
+            ));
+        }
+
+        if server_ids.contains(&"slack".to_string()) && !server_ids.contains(&"fetch".to_string()) {
+            suggestions.push((
+                "fetch".to_string(),
+                "Enables fetching data from APIs to send to Slack".to_string(),
+            ));
+        }
+
+        if server_ids.contains(&"code-index".to_string()) && !server_ids.contains(&"filesystem".to_string()) {
+            suggestions.push((
+                "filesystem".to_string(),
+                "Required for code-index to access source files".to_string(),
+            ));
+        }
+
+        suggestions
+    }
 }
 
 #[cfg(test)]
@@ -397,5 +599,48 @@ mod tests {
         let servers = McpRegistry::for_executor();
         assert!(!servers.is_empty());
         assert!(servers.iter().any(|s| s.id == "filesystem"));
+    }
+
+    #[test]
+    fn test_detect_overlaps() {
+        // Test filesystem + serena overlap
+        let server_ids = vec!["filesystem".to_string(), "serena".to_string()];
+        let warnings = McpRegistry::detect_overlaps(&server_ids);
+        assert!(!warnings.is_empty());
+        assert!(warnings[0].contains("filesystem"));
+        assert!(warnings[0].contains("serena"));
+
+        // Test no overlaps
+        let server_ids = vec!["filesystem".to_string(), "github".to_string()];
+        let warnings = McpRegistry::detect_overlaps(&server_ids);
+        assert!(warnings.is_empty());
+
+        // Test performance warning
+        let server_ids: Vec<String> = (0..10).map(|i| format!("server-{}", i)).collect();
+        let warnings = McpRegistry::detect_overlaps(&server_ids);
+        assert!(warnings.iter().any(|w| w.contains("Performance")));
+    }
+
+    #[test]
+    fn test_suggest_complementary() {
+        // Test github suggests code-index
+        let server_ids = vec!["github".to_string()];
+        let suggestions = McpRegistry::suggest_complementary(&server_ids);
+        assert!(suggestions.iter().any(|(id, _)| id == "code-index"));
+
+        // Test code-index suggests filesystem
+        let server_ids = vec!["code-index".to_string()];
+        let suggestions = McpRegistry::suggest_complementary(&server_ids);
+        assert!(suggestions.iter().any(|(id, _)| id == "filesystem"));
+    }
+
+    #[test]
+    fn test_new_servers_exist() {
+        // Verify the newly added servers are in the registry
+        assert!(McpRegistry::get("code-index").is_some());
+        assert!(McpRegistry::get("figma").is_some());
+        assert!(McpRegistry::get("desktop-commander").is_some());
+        assert!(McpRegistry::get("serena").is_some());
+        assert!(McpRegistry::get("context7").is_some());
     }
 }

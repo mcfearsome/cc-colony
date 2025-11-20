@@ -686,15 +686,26 @@ impl App {
 
         // Parse MCP server IDs
         let mut mcp_servers = HashMap::new();
+        let mut server_ids = Vec::new();
+
         if !mcp_server_ids.is_empty() {
             for id in mcp_server_ids.split(',') {
                 let id = id.trim();
                 if let Some(server) = McpRegistry::get(id) {
                     mcp_servers.insert(server.id.clone(), server.config);
+                    server_ids.push(id.to_string());
                 } else {
                     self.set_status(&format!("Unknown MCP server ID: {}", id), true);
                     return;
                 }
+            }
+
+            // Check for overlaps and show warnings
+            let warnings = McpRegistry::detect_overlaps(&server_ids);
+            if !warnings.is_empty() {
+                let warning_msg = format!("Overlaps detected: {}", warnings.join("; "));
+                self.set_status(&warning_msg, false);
+                // Still proceed but warn the user
             }
         }
 
