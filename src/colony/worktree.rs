@@ -83,6 +83,36 @@ pub fn create_worktree(agent_id: &str, base_path: &Path) -> ColonyResult<PathBuf
         )));
     }
 
+    // Symlink .claude directory from main repo to worktree if it exists
+    // This ensures agents inherit MCP server configuration and hooks
+    let main_claude_dir = Path::new(".claude");
+    if main_claude_dir.exists() && main_claude_dir.is_dir() {
+        let worktree_claude_dir = worktree_path.join(".claude");
+
+        // Get absolute path to main repo's .claude directory
+        let main_claude_absolute = std::fs::canonicalize(main_claude_dir)
+            .map_err(|e| crate::error::ColonyError::Colony(format!(
+                "Failed to get absolute path for .claude: {}", e
+            )))?;
+
+        // Create symlink
+        #[cfg(unix)]
+        {
+            if !worktree_claude_dir.exists() {
+                std::os::unix::fs::symlink(&main_claude_absolute, &worktree_claude_dir)
+                    .map_err(|e| crate::error::ColonyError::Colony(format!(
+                        "Failed to symlink .claude directory: {}", e
+                    )))?;
+
+                crate::utils::info(&format!(
+                    "Symlinked .claude directory: {} -> {}",
+                    worktree_claude_dir.display(),
+                    main_claude_absolute.display()
+                ));
+            }
+        }
+    }
+
     Ok(worktree_path)
 }
 

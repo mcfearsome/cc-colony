@@ -20,7 +20,10 @@ pub struct ColonyController {
 impl ColonyController {
     /// Create a new colony controller
     pub fn new(config: ColonyConfig) -> ColonyResult<Self> {
-        let colony_root = PathBuf::from(".colony");
+        // Use absolute path for colony_root to ensure paths work correctly across tmux panes
+        let colony_root = std::env::current_dir()
+            .map_err(|e| crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e)))?
+            .join(".colony");
 
         // Create colony directory if it doesn't exist
         fs::create_dir_all(&colony_root)?;

@@ -4,12 +4,13 @@ use crossterm::{
 };
 use ratatui::prelude::*;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::data::ColonyData;
 use super::events::{Action, Event, EventHandler};
 use super::ui;
+use crate::colony::messaging::{Message, MessageType};
 
 /// Tab in the TUI
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +19,8 @@ pub enum Tab {
     Tasks,
     Messages,
     State,
+    Compose,
+    Instructions,
     Help,
 }
 
@@ -28,7 +31,9 @@ impl Tab {
             Tab::Tasks => 1,
             Tab::Messages => 2,
             Tab::State => 3,
-            Tab::Help => 4,
+            Tab::Compose => 4,
+            Tab::Instructions => 5,
+            Tab::Help => 6,
         }
     }
 
@@ -38,8 +43,9 @@ impl Tab {
             1 => Tab::Tasks,
             2 => Tab::Messages,
             3 => Tab::State,
-            4 => Tab::Help,
-            _ => Tab::Agents,
+            4 => Tab::Compose,
+            5 => Tab::Instructions,
+            6 => Tab::Help,
         }
     }
 
@@ -48,7 +54,7 @@ impl Tab {
     }
 
     pub fn previous(&self) -> Self {
-        Self::from_index((self.index() + 4) % 5)
+        Self::from_index((self.index() + 5) % 6)
     }
 }
 
@@ -124,12 +130,26 @@ pub struct App {
     pub dialog_inputs: Vec<String>,
     /// Status message to display
     pub status_message: Option<(String, bool)>, // (message, is_error)
+    /// Available recipients (includes "all" + agent IDs)
+    pub compose_recipients: Vec<String>,
+    /// Selected recipient index
+    pub compose_recipient_index: usize,
+    /// Message content being composed (multiline buffer)
+    pub compose_message: String,
+    /// Which field has focus in Compose tab (0=message, 1=recipient)
+    pub compose_focus: usize,
+    /// Instructions input buffer (natural language orchestration)
+    pub instructions: String,
 }
 
 impl App {
     /// Create a new application
     pub fn new(config_path: &Path) -> Result<Self, String> {
         let data = ColonyData::load(config_path)?;
+
+        // Build recipient list: "all" first, then all agent IDs
+        let mut recipients = vec!["all".to_string()];
+        recipients.extend(data.agents.iter().map(|a| a.id.clone()));
 
         Ok(Self {
             current_tab: Tab::Agents,
@@ -143,6 +163,11 @@ impl App {
             input_buffer: String::new(),
             dialog_inputs: Vec::new(),
             status_message: None,
+            compose_recipients: recipients,
+            compose_recipient_index: 0,
+            compose_message: String::new(),
+            compose_focus: 0, // 0=message, 1=recipient
+            instructions: String::new(),
         })
     }
 
@@ -172,18 +197,30 @@ impl App {
                 } else if index == usize::MAX - 1 {
                     // Previous tab
                     self.current_tab = self.current_tab.previous();
-                } else if index < 5 {
+                } else if index < 6 {
                     self.current_tab = Tab::from_index(index);
                 }
                 self.scroll_position = 0;
             }
             Action::ScrollUp => {
-                if self.scroll_position > 0 {
+                if self.current_tab == Tab::Compose && self.compose_focus == 1 {
+                    // Navigate recipient selection (focus==1 is recipient)
+                    if self.compose_recipient_index > 0 {
+                        self.compose_recipient_index -= 1;
+                    }
+                } else if self.scroll_position > 0 {
                     self.scroll_position -= 1;
                 }
             }
             Action::ScrollDown => {
-                self.scroll_position += 1;
+                if self.current_tab == Tab::Compose && self.compose_focus == 1 {
+                    // Navigate recipient selection (focus==1 is recipient)
+                    if self.compose_recipient_index < self.compose_recipients.len() - 1 {
+                        self.compose_recipient_index += 1;
+                    }
+                } else {
+                    self.scroll_position += 1;
+                }
             }
             Action::PageUp => {
                 if self.scroll_position >= 10 {
@@ -207,14 +244,59 @@ impl App {
                 self.active_dialog = Some(Dialog::BroadcastMessage);
                 self.input_buffer.clear();
                 self.dialog_inputs.clear();
+                // Switch to compose tab with "all" pre-selected
+                self.current_tab = Tab::Compose;
+                self.compose_recipient_index = 0;
+                self.compose_message.clear();
+                self.compose_focus = 0;
+                self.scroll_position = 0;
+            }
+            Action::SendMessage => {
+                // Switch to compose tab
+                self.current_tab = Tab::Compose;
+                self.compose_recipient_index = 0;
+                self.compose_message.clear();
+                self.compose_focus = 0;
+                self.scroll_position = 0;
+            }
+            Action::Cancel => {
+                if self.current_tab == Tab::Compose {
+                    self.compose_recipient_index = 0;
+                    self.compose_message.clear();
+                    self.compose_focus = 0;
+                } else if self.current_tab == Tab::Instructions {
+                    self.instructions.clear();
+                }
+            }
+            Action::Confirm => {
+                if self.current_tab == Tab::Compose {
+                    self.send_message();
+                } else if self.current_tab == Tab::Instructions {
+                    self.execute_instructions();
+                }
+            }
+            Action::InputChar(c) => {
+                if self.current_tab == Tab::Compose && self.compose_focus == 0 {
+                    self.compose_message.push(c);
+                } else if self.current_tab == Tab::Instructions {
+                    self.instructions.push(c);
+                }
+            }
+            Action::Backspace => {
+                if self.current_tab == Tab::Compose && self.compose_focus == 0 {
+                    self.compose_message.pop();
+                } else if self.current_tab == Tab::Instructions {
+                    self.instructions.pop();
+                }
+            }
+            Action::NextField => {
+                // Tab key switches focus between message field and recipient selector
+                if self.current_tab == Tab::Compose {
+                    self.compose_focus = (self.compose_focus + 1) % 2;
+                }
             }
             Action::CreateTask => {
                 self.active_dialog = Some(Dialog::CreateTask { step: 0 });
-                self.input_buffer.clear();
-                self.dialog_inputs.clear();
-            }
-            Action::SendMessage => {
-                self.active_dialog = Some(Dialog::SendMessage { step: 0 });
                 self.input_buffer.clear();
                 self.dialog_inputs.clear();
             }
@@ -421,6 +503,16 @@ impl App {
     /// Refresh colony data from disk
     pub fn refresh_data(&mut self) {
         if let Ok(data) = ColonyData::load(Path::new(&self.config_path)) {
+            // Rebuild recipient list in case agents changed
+            let mut recipients = vec!["all".to_string()];
+            recipients.extend(data.agents.iter().map(|a| a.id.clone()));
+
+            // Clamp recipient index if agents were removed
+            if self.compose_recipient_index >= recipients.len() {
+                self.compose_recipient_index = 0;
+            }
+
+            self.compose_recipients = recipients;
             self.data = data;
             self.last_refresh = Instant::now();
         }
@@ -436,6 +528,74 @@ impl App {
         if self.should_auto_refresh() {
             self.refresh_data();
         }
+    }
+
+    /// Send the composed message
+    fn send_message(&mut self) {
+        if self.compose_message.is_empty() {
+            return;
+        }
+
+        // Get the recipient from the selected index
+        let recipient = &self.compose_recipients[self.compose_recipient_index];
+
+        // Use absolute path to .colony directory
+        let colony_root = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(".colony");
+
+        // Create message with sender as "orchestrator"
+        let message = Message::new(
+            "orchestrator",
+            recipient,
+            self.compose_message.clone(),
+            MessageType::Info,
+        );
+
+        // Try to save the message
+        if let Err(_e) = message.save(&colony_root) {
+            // Silently fail - we're in TUI mode so we can't show errors easily
+            // The message just won't be sent
+        }
+
+        // Clear fields after sending
+        self.compose_recipient_index = 0;
+        self.compose_message.clear();
+        self.compose_focus = 0;
+
+        // Refresh data to show the new message
+        self.refresh_data();
+    }
+
+    /// Execute natural language instructions by routing to agents
+    fn execute_instructions(&mut self) {
+        if self.instructions.trim().is_empty() {
+            return;
+        }
+
+        let colony_root = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(".colony");
+
+        // Simple routing: broadcast to all agents as a task
+        // Future: Could use LLM to parse and route to specific agents
+        let instruction = self.instructions.clone();
+
+        // Send as broadcast task
+        let message = Message::new(
+            "orchestrator",
+            "all",
+            format!("INSTRUCTION: {}", instruction),
+            MessageType::Task,
+        );
+
+        let _ = message.save(&colony_root);
+
+        // Clear instructions after sending
+        self.instructions.clear();
+
+        // Refresh to show new message
+        self.refresh_data();
     }
 }
 
@@ -487,6 +647,34 @@ fn run_app<B: Backend>(
             Ok(Event::Key(key)) => {
                 let in_dialog = app.active_dialog.is_some();
                 let action = Action::from_key(key, in_dialog);
+                use crossterm::event::{KeyCode, KeyModifiers};
+
+                // In Compose or Instructions tab, handle text input differently
+                let action = if app.current_tab == Tab::Compose {
+                    match (key.code, key.modifiers) {
+                        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
+                        (KeyCode::Backspace, _) => Action::Backspace,
+                        (KeyCode::Tab, _) => Action::NextField,
+                        (KeyCode::Esc, _) => Action::Cancel,
+                        // Enter adds newline in message field, sends when in recipient field
+                        (KeyCode::Enter, _) if app.compose_focus == 0 => Action::InputChar('\n'),
+                        (KeyCode::Enter, _) if app.compose_focus == 1 => Action::Confirm,
+                        (KeyCode::Up, _) => Action::ScrollUp,
+                        (KeyCode::Down, _) => Action::ScrollDown,
+                        _ => Action::from(key),
+                    }
+                } else if app.current_tab == Tab::Instructions {
+                    match (key.code, key.modifiers) {
+                        (KeyCode::Char(c), KeyModifiers::NONE) | (KeyCode::Char(c), KeyModifiers::SHIFT) => Action::InputChar(c),
+                        (KeyCode::Backspace, _) => Action::Backspace,
+                        (KeyCode::Enter, _) => Action::Confirm,
+                        (KeyCode::Esc, _) => Action::Cancel,
+                        _ => Action::from(key),
+                    }
+                } else {
+                    Action::from(key)
+                };
+
                 app.handle_action(action);
             }
             Ok(Event::Resize) => {

@@ -68,10 +68,12 @@ pub enum Action {
     Cancel,
     /// Confirm current action
     Confirm,
-    /// Character input (for dialogs)
-    CharInput(char),
-    /// Backspace (for dialogs)
+    /// Input character
+    InputChar(char),
+    /// Delete character (backspace)
     Backspace,
+    /// Move to next field in compose mode
+    NextField,
     /// No action
     None,
 }
@@ -117,6 +119,8 @@ impl Action {
             (KeyCode::Char('2'), KeyModifiers::NONE) => Action::SwitchTab(1),
             (KeyCode::Char('3'), KeyModifiers::NONE) => Action::SwitchTab(2),
             (KeyCode::Char('4'), KeyModifiers::NONE) => Action::SwitchTab(3),
+            (KeyCode::Char('5'), KeyModifiers::NONE) => Action::SwitchTab(4),
+            (KeyCode::Char('6'), KeyModifiers::NONE) => Action::SwitchTab(5),
             (KeyCode::Tab, KeyModifiers::NONE) => Action::SwitchTab(usize::MAX), // Next tab
             (KeyCode::BackTab, KeyModifiers::SHIFT) => Action::SwitchTab(usize::MAX - 1), // Previous tab
 

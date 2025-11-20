@@ -71,6 +71,12 @@ pub struct ColonyConfig {
     /// Telemetry configuration (opt-in)
     #[serde(default)]
     pub telemetry: TelemetryConfig,
+    /// Optional global capabilities available to all agents
+    #[serde(default)]
+    pub capabilities: Option<CapabilitiesConfig>,
+    /// Optional custom layout configuration
+    #[serde(default)]
+    pub layout: Option<LayoutConfig>,
 }
 
 /// Configuration for a single agent
@@ -104,6 +110,10 @@ pub struct AgentConfig {
     /// This will be added after the standard colony prompt (role, focus, messaging)
     #[serde(default)]
     pub instructions: Option<String>,
+    #[serde(default)]
+    pub capabilities: Option<String>,
+    #[serde(default)]
+    pub nudge: Option<String>,
     /// Optional completely custom startup prompt
     /// If provided, this replaces the entire generated startup prompt
     /// Use this for complete control over the agent's initial instructions
@@ -158,6 +168,12 @@ pub struct RepositoryConfig {
     /// Optional context about what agents should know about this repository
     #[serde(default)]
     pub context: Option<String>,
+    /// Optional agent-specific capabilities
+    #[serde(default)]
+    pub capabilities: Option<CapabilitiesConfig>,
+    /// Optional nudge configuration for this agent
+    #[serde(default)]
+    pub nudge: Option<NudgeConfig>,
 }
 
 /// Configuration for an MCP server
@@ -216,7 +232,9 @@ impl ExecutorConfig {
     pub fn generate_settings_json(&self) -> ColonyResult<String> {
         use serde_json::{json, Value};
 
-        let mut settings = json!({});
+        let mut settings = json!({
+            "bypassPermissions": true
+        });
 
         // Add MCP servers if configured
         if let Some(mcp_servers) = &self.mcp_servers {
@@ -285,7 +303,9 @@ impl AgentConfig {
     pub fn generate_settings_json(&self) -> ColonyResult<String> {
         use serde_json::{json, Value};
 
-        let mut settings = json!({});
+        let mut settings = json!({
+            "bypassPermissions": true
+        });
 
         // Add MCP servers if configured
         if let Some(mcp_servers) = &self.mcp_servers {
@@ -322,6 +342,21 @@ impl AgentConfig {
     pub fn has_mcp_servers(&self) -> bool {
         self.mcp_servers.as_ref().map_or(false, |s| !s.is_empty())
     }
+
+    /// Get resolved capabilities (agent-specific merged with global)
+    pub fn resolved_capabilities(&self, global: Option<&CapabilitiesConfig>) -> Option<CapabilitiesConfig> {
+        match (&self.capabilities, global) {
+            (Some(agent_caps), Some(global_caps)) => Some(agent_caps.merge_with(Some(global_caps))),
+            (Some(agent_caps), None) => Some(agent_caps.clone()),
+            (None, Some(global_caps)) => Some(global_caps.clone()),
+            (None, None) => None,
+        }
+    }
+
+    /// Get nudge configuration with defaults
+    pub fn nudge_config(&self) -> NudgeConfig {
+        self.nudge.clone().unwrap_or_default()
+    }
 }
 
 fn default_model() -> String {
@@ -352,6 +387,8 @@ impl ColonyConfig {
             shared_state: None, // No shared state config by default
             auth: Default::default(), // Default auth (API key from env)
             telemetry: Default::default(), // Telemetry disabled by default (opt-in)
+            capabilities: None,
+            layout: None,
             agents: vec![
                 AgentConfig {
                     id: "backend-1".to_string(),
@@ -364,6 +401,8 @@ impl ColonyConfig {
                     mcp_servers: None,
                     instructions: None,    // No custom instructions
                     startup_prompt: None,  // Use default generated prompt
+                    capabilities: None,
+                    nudge: None,
                 },
                 AgentConfig {
                     id: "frontend-1".to_string(),
@@ -376,6 +415,8 @@ impl ColonyConfig {
                     mcp_servers: None,
                     instructions: None,    // No custom instructions
                     startup_prompt: None,  // Use default generated prompt
+                    capabilities: None,
+                    nudge: None,
                 },
             ],
         }
@@ -454,6 +495,134 @@ impl ColonyConfig {
     }
 }
 
+/// Nudge configuration for periodic message checking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NudgeConfig {
+    /// Whether nudging is enabled for this agent
+    #[serde(default = "default_nudge_enabled")]
+    pub enabled: bool,
+    /// Interval in seconds between nudges
+    #[serde(default = "default_nudge_interval")]
+    pub interval: u64,
+    /// Custom nudge prompt (uses default if not specified)
+    #[serde(default)]
+    pub prompt: Option<String>,
+}
+
+fn default_nudge_enabled() -> bool {
+    false
+}
+
+fn default_nudge_interval() -> u64 {
+    60
+}
+
+impl Default for NudgeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            interval: 60,
+            prompt: None,
+        }
+    }
+}
+
+/// Capabilities configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapabilitiesConfig {
+    /// Command-line tools available
+    #[serde(default)]
+    pub tools: Vec<String>,
+    /// MCP servers available
+    #[serde(default)]
+    pub mcp_servers: Vec<String>,
+    /// Pane-based tools (nvim, ollama, etc.)
+    #[serde(default)]
+    pub pane_tools: Vec<String>,
+}
+
+impl CapabilitiesConfig {
+    /// Merge with global capabilities (agent overrides global)
+    pub fn merge_with(&self, global: Option<&CapabilitiesConfig>) -> Self {
+        let mut merged = self.clone();
+
+        if let Some(global_caps) = global {
+            // Add global tools not already in agent's list
+            for tool in &global_caps.tools {
+                if !merged.tools.contains(tool) {
+                    merged.tools.push(tool.clone());
+                }
+            }
+            for server in &global_caps.mcp_servers {
+                if !merged.mcp_servers.contains(server) {
+                    merged.mcp_servers.push(server.clone());
+                }
+            }
+            for pane_tool in &global_caps.pane_tools {
+                if !merged.pane_tools.contains(pane_tool) {
+                    merged.pane_tools.push(pane_tool.clone());
+                }
+            }
+        }
+
+        merged
+    }
+
+    /// Export as environment variable string
+    pub fn to_env_string(&self) -> String {
+        format!(
+            "COLONY_TOOLS=\"{}\" COLONY_MCP_SERVERS=\"{}\" COLONY_PANE_TOOLS=\"{}\"",
+            self.tools.join(","),
+            self.mcp_servers.join(","),
+            self.pane_tools.join(",")
+        )
+    }
+}
+
+/// Layout configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutConfig {
+    /// Layout type
+    #[serde(default = "default_layout_type", rename = "type")]
+    pub layout_type: String,
+    /// Custom windows (optional)
+    #[serde(default)]
+    pub windows: Vec<WindowConfig>,
+}
+
+fn default_layout_type() -> String {
+    "default".to_string()
+}
+
+/// Window configuration for custom layouts
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindowConfig {
+    /// Window name
+    pub name: String,
+    /// Panes in this window
+    pub panes: Vec<PaneConfig>,
+}
+
+/// Pane configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaneConfig {
+    /// Pane type: agent, tool, executor, tui
+    #[serde(rename = "type")]
+    pub pane_type: String,
+    /// Agent ID (for agent panes)
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    /// Command to run (for tool panes)
+    #[serde(default)]
+    pub command: Option<String>,
+    /// Pane title
+    #[serde(default)]
+    pub title: Option<String>,
+    /// Pane size (percentage or absolute)
+    #[serde(default)]
+    pub size: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,9 +666,13 @@ mod tests {
                     mcp_servers: None,
                     instructions: None,
                     startup_prompt: None,
+                    capabilities: None,
+                    nudge: None,
                 },
             ],
             executor: None,
+            capabilities: None,
+            layout: None,
         };
         assert!(config.validate().is_err());
     }

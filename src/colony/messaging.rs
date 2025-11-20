@@ -21,6 +21,12 @@ pub struct Message {
     /// Message type
     #[serde(default = "default_message_type")]
     pub message_type: MessageType,
+    /// Project directory context (working directory of sender)
+    #[serde(default)]
+    pub project_dir: Option<String>,
+    /// Git branch context
+    #[serde(default)]
+    pub git_branch: Option<String>,
 }
 
 fn default_message_type() -> MessageType {
@@ -65,6 +71,8 @@ impl Message {
             content,
             timestamp,
             message_type,
+            project_dir: None,
+            git_branch: None,
         }
     }
 
@@ -190,7 +198,11 @@ fn shell_escape_for_script(s: &str) -> String {
 }
 
 /// Create message helper script for agents
-pub fn create_message_helper_script(colony_root: &Path, agent_id: &str) -> ColonyResult<PathBuf> {
+pub fn create_message_helper_script(
+    colony_root: &Path,
+    agent_id: &str,
+    worktree_path: Option<&Path>,
+) -> ColonyResult<PathBuf> {
     let script_path = colony_root
         .join("projects")
         .join(agent_id)
@@ -230,6 +242,10 @@ case "$1" in
         TIMESTAMP_NS=$(date +%s%N 2>/dev/null || date +%s000000000)
         MSG_ID="${{AGENT_ID}}-${{TIMESTAMP_NS}}"
 
+        # Capture context: current directory and git branch
+        PROJECT_DIR="$PWD"
+        GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
         mkdir -p "$COLONY_ROOT/messages/$RECIPIENT"
         mkdir -p "$COLONY_ROOT/messages/$AGENT_ID/sent"
 
@@ -241,13 +257,17 @@ case "$1" in
                 --arg to "$RECIPIENT" \
                 --arg content "$MESSAGE" \
                 --arg timestamp "$TIMESTAMP" \
+                --arg project_dir "$PROJECT_DIR" \
+                --arg git_branch "$GIT_BRANCH" \
                 '{{
                     id: $id,
                     from: $from,
                     to: $to,
                     content: $content,
                     timestamp: $timestamp,
-                    message_type: "info"
+                    message_type: "info",
+                    project_dir: (if $project_dir != "" then $project_dir else null end),
+                    git_branch: (if $git_branch != "" then $git_branch else null end)
                 }}' > "$COLONY_ROOT/messages/$RECIPIENT/${{MSG_ID}}.json"
         else
             # Fallback: use Python for proper JSON escaping if available
@@ -258,12 +278,16 @@ case "$1" in
                     'to': '''$RECIPIENT''',
                     'content': '''$MESSAGE''',
                     'timestamp': '''$TIMESTAMP''',
-                    'message_type': 'info'
+                    'message_type': 'info',
+                    'project_dir': '''$PROJECT_DIR''' if '''$PROJECT_DIR''' else None,
+                    'git_branch': '''$GIT_BRANCH''' if '''$GIT_BRANCH''' else None
                 }}, indent=2))" > "$COLONY_ROOT/messages/$RECIPIENT/${{MSG_ID}}.json"
             else
                 # Last resort: manual JSON escaping with improved handling
                 # Escape backslashes first (must be first), then quotes, then newlines
                 ESCAPED_MSG=$(printf '%s' "$MESSAGE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+                ESCAPED_DIR=$(printf '%s' "$PROJECT_DIR" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+                ESCAPED_BRANCH=$(printf '%s' "$GIT_BRANCH" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
                 # Use printf to avoid issues with special characters in echo
                 printf '{{
   "id": "%s",
@@ -271,8 +295,10 @@ case "$1" in
   "to": "%s",
   "content": "%s",
   "timestamp": "%s",
-  "message_type": "info"
-}}\n' "$MSG_ID" "$AGENT_ID" "$RECIPIENT" "$ESCAPED_MSG" "$TIMESTAMP" > "$COLONY_ROOT/messages/$RECIPIENT/${{MSG_ID}}.json"
+  "message_type": "info",
+  "project_dir": "%s",
+  "git_branch": %s
+}}\n' "$MSG_ID" "$AGENT_ID" "$RECIPIENT" "$ESCAPED_MSG" "$TIMESTAMP" "$ESCAPED_DIR" "$(if [ -n "$ESCAPED_BRANCH" ]; then echo "\"$ESCAPED_BRANCH\""; else echo "null"; fi)" > "$COLONY_ROOT/messages/$RECIPIENT/${{MSG_ID}}.json"
             fi
         fi
 
@@ -288,12 +314,22 @@ case "$1" in
                 [ -e "$msg" ] || continue
                 echo "---"
                 if command -v jq >/dev/null 2>&1; then
-                    cat "$msg" | jq -r '"From: \(.from) | \(.content)"'
+                    cat "$msg" | jq -r '
+                        "From: \(.from)" +
+                        (if .project_dir then " [\(.project_dir)]" else "" end) +
+                        (if .git_branch then " (\(.git_branch))" else "" end) +
+                        "\n\(.content)"'
                 else
                     # Fallback: simple grep-based parsing
                     from=$(grep -o '"from": *"[^"]*"' "$msg" | sed 's/"from": *"\([^"]*\)"/\1/')
                     content=$(grep -o '"content": *"[^"]*"' "$msg" | sed 's/"content": *"\([^"]*\)"/\1/')
-                    echo "From: $from | $content"
+                    project_dir=$(grep -o '"project_dir": *"[^"]*"' "$msg" | sed 's/"project_dir": *"\([^"]*\)"/\1/' || echo "")
+                    git_branch=$(grep -o '"git_branch": *"[^"]*"' "$msg" | sed 's/"git_branch": *"\([^"]*\)"/\1/' || echo "")
+                    echo -n "From: $from"
+                    [ -n "$project_dir" ] && echo -n " [$project_dir]"
+                    [ -n "$git_branch" ] && echo -n " ($git_branch)"
+                    echo ""
+                    echo "$content"
                 fi
             done
         fi
@@ -304,12 +340,22 @@ case "$1" in
                 [ -e "$msg" ] || continue
                 echo "---"
                 if command -v jq >/dev/null 2>&1; then
-                    cat "$msg" | jq -r '"[BROADCAST] From: \(.from) | \(.content)"'
+                    cat "$msg" | jq -r '
+                        "[BROADCAST] From: \(.from)" +
+                        (if .project_dir then " [\(.project_dir)]" else "" end) +
+                        (if .git_branch then " (\(.git_branch))" else "" end) +
+                        "\n\(.content)"'
                 else
                     # Fallback: simple grep-based parsing
                     from=$(grep -o '"from": *"[^"]*"' "$msg" | sed 's/"from": *"\([^"]*\)"/\1/')
                     content=$(grep -o '"content": *"[^"]*"' "$msg" | sed 's/"content": *"\([^"]*\)"/\1/')
-                    echo "[BROADCAST] From: $from | $content"
+                    project_dir=$(grep -o '"project_dir": *"[^"]*"' "$msg" | sed 's/"project_dir": *"\([^"]*\)"/\1/' || echo "")
+                    git_branch=$(grep -o '"git_branch": *"[^"]*"' "$msg" | sed 's/"git_branch": *"\([^"]*\)"/\1/' || echo "")
+                    echo -n "[BROADCAST] From: $from"
+                    [ -n "$project_dir" ] && echo -n " [$project_dir]"
+                    [ -n "$git_branch" ] && echo -n " ($git_branch)"
+                    echo ""
+                    echo "$content"
                 fi
             done
         fi
@@ -343,6 +389,49 @@ esac
         let mut perms = fs::metadata(&script_path)?.permissions();
         perms.set_mode(0o755);
         fs::set_permissions(&script_path, perms)?;
+    }
+
+    // Create symlink in the worktree if path is provided
+    if let Some(worktree_dir) = worktree_path {
+        // Create both a generic symlink and an agent-specific one
+        // Generic: ./colony_message.sh (may be overwritten in shared worktrees)
+        // Specific: ./colony_message_{agent-id}.sh (always unique)
+
+        let generic_symlink = worktree_dir.join("colony_message.sh");
+        let specific_symlink = worktree_dir.join(format!("colony_message_{}.sh", agent_id));
+
+        // Create relative path from worktree to project directory
+        // From: .colony/worktrees/{name}/colony_message.sh
+        // To:   .colony/projects/{agent-id}/colony_message.sh
+        // Relative path: ../../projects/{agent-id}/colony_message.sh
+        let relative_path = format!("../../projects/{}/colony_message.sh", agent_id);
+
+        #[cfg(unix)]
+        {
+            // Create agent-specific symlink (always unique)
+            if specific_symlink.exists() || specific_symlink.symlink_metadata().is_ok() {
+                let _ = std::fs::remove_file(&specific_symlink);
+            }
+            std::os::unix::fs::symlink(&relative_path, &specific_symlink)
+                .map_err(|e| crate::error::ColonyError::Colony(format!(
+                    "Failed to create specific symlink for agent '{}' at {}: {}",
+                    agent_id,
+                    specific_symlink.display(),
+                    e
+                )))?;
+
+            // Create generic symlink (for convenience when worktree is not shared)
+            if generic_symlink.exists() || generic_symlink.symlink_metadata().is_ok() {
+                let _ = std::fs::remove_file(&generic_symlink);
+            }
+            std::os::unix::fs::symlink(&relative_path, &generic_symlink)
+                .map_err(|e| crate::error::ColonyError::Colony(format!(
+                    "Failed to create generic symlink for agent '{}' at {}: {}",
+                    agent_id,
+                    generic_symlink.display(),
+                    e
+                )))?;
+        }
     }
 
     Ok(script_path)

@@ -30,11 +30,13 @@ pub fn render(f: &mut Frame, app: &App) {
 
     // Render main content based on current tab
     match app.current_tab {
-        Tab::Agents => render_agents(f, app, chunks[2]),
-        Tab::Tasks => render_tasks(f, app, chunks[2]),
-        Tab::Messages => render_messages(f, app, chunks[2]),
-        Tab::State => render_state(f, app, chunks[2]),
-        Tab::Help => render_help(f, chunks[2]),
+        Tab::Agents => render_agents(f, app, chunks[1]),
+        Tab::Tasks => render_tasks(f, app, chunks[1]),
+        Tab::Messages => render_messages(f, app, chunks[1]),
+        Tab::State => render_state(f, app, chunks[1]),
+        Tab::Compose => render_compose(f, app, chunks[1]),
+        Tab::Instructions => render_instructions(f, app, chunks[1]),
+        Tab::Help => render_help(f, chunks[1]),
     }
 
     // Render status bar
@@ -47,7 +49,7 @@ pub fn render(f: &mut Frame, app: &App) {
 }
 
 fn render_tabs(f: &mut Frame, app: &App, area: Rect) {
-    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Help"];
+    let tab_titles = vec!["1: Agents", "2: Tasks", "3: Messages", "4: State", "5: Compose", "6: Instructions", "7: Help"];
 
     let tabs = Tabs::new(tab_titles)
         .block(
@@ -567,15 +569,23 @@ fn render_help(f: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from("  Navigation:"),
         Line::from("    1-5, Tab       Switch between tabs"),
-        Line::from("    ↑/↓, j/k       Scroll up/down (coming soon)"),
-        Line::from("    PgUp/PgDn      Page up/down (coming soon)"),
+        Line::from("    ↑/↓, j/k       Scroll up/down"),
+        Line::from("    PgUp/PgDn      Page up/down"),
         Line::from(""),
         Line::from("  Actions:"),
         Line::from("    r              Refresh data"),
-        Line::from("    b              Broadcast message (coming soon)"),
+        Line::from("    b              Broadcast message (opens Compose tab)"),
+        Line::from("    m              Send message (opens Compose tab)"),
         Line::from("    t              Create task (coming soon)"),
-        Line::from("    m              Send message to agent (coming soon)"),
         Line::from("    ?              Show this help"),
+        Line::from(""),
+        Line::from("  Compose Tab:"),
+        Line::from("    Type           Write multiline message"),
+        Line::from("    Enter          Add newline in message field"),
+        Line::from("    Tab            Switch to recipient selector"),
+        Line::from("    ↑/↓            Navigate recipients (when in selector)"),
+        Line::from("    Enter          Send message (when in selector)"),
+        Line::from("    Esc            Clear message"),
         Line::from(""),
         Line::from("  General:"),
         Line::from("    q, Ctrl+C      Quit"),
@@ -713,6 +723,190 @@ fn render_progress_bar(percentage: u8) -> Vec<Span<'static>> {
     spans.push(Span::raw(format!("] {}%", percentage)));
 
     spans
+}
+
+fn render_compose(f: &mut Frame, app: &App, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Compose Message ")
+        .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    // Split into sections: message (large), recipient selector, help
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(5),      // Message field (multiline, takes most space)
+            Constraint::Length(8),   // Recipient selector
+            Constraint::Length(2),   // Help text
+        ])
+        .split(inner_area);
+
+    // Render message field (multiline)
+    let message_focus_marker = if app.compose_focus == 0 { "► " } else { "  " };
+    let message_text = if app.compose_message.is_empty() {
+        vec![
+            Line::from(Span::styled(
+                format!("{}Message (multiline):", message_focus_marker),
+                Style::default().fg(Color::Cyan),
+            )),
+            Line::from(Span::styled(
+                "(Start typing your message...)",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ]
+    } else {
+        let mut lines = vec![Line::from(Span::styled(
+            format!("{}Message:", message_focus_marker),
+            Style::default().fg(Color::Cyan),
+        ))];
+
+        // Split message into lines for multiline display
+        for line in app.compose_message.lines() {
+            let style = if app.compose_focus == 0 {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            lines.push(Line::from(Span::styled(line, style)));
+        }
+        lines
+    };
+
+    let message_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(if app.compose_focus == 0 {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::Gray)
+        });
+
+    let message_para = Paragraph::new(message_text)
+        .block(message_block);
+    f.render_widget(message_para, chunks[0]);
+
+    // Render recipient selector
+    let recipient_focus_marker = if app.compose_focus == 1 { "► " } else { "  " };
+
+    let recipient_items: Vec<ListItem> = app
+        .compose_recipients
+        .iter()
+        .enumerate()
+        .map(|(i, recipient)| {
+            let content = if recipient == "all" {
+                format!("{} (broadcast to all agents)", recipient)
+            } else {
+                recipient.clone()
+            };
+
+            let style = if i == app.compose_recipient_index {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(if i == app.compose_recipient_index { "→ " } else { "  " }, style),
+                Span::styled(content, style),
+            ]))
+        })
+        .collect();
+
+    let recipient_list = List::new(recipient_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("{}Recipient (↑↓ to select)", recipient_focus_marker))
+                .title_style(Style::default().fg(Color::Cyan))
+                .border_style(if app.compose_focus == 1 {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::Gray)
+                }),
+        );
+
+    f.render_widget(recipient_list, chunks[1]);
+
+    // Render help text
+    let help_text = if app.compose_focus == 0 {
+        Line::from(vec![
+            Span::styled("Tab", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" select recipient  |  "),
+            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" send  |  "),
+            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::raw(" clear"),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled("↑↓", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" navigate  |  "),
+            Span::styled("Tab", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" back to message  |  "),
+            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" send"),
+        ])
+    };
+
+    let help_para = Paragraph::new(help_text)
+        .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(help_para, chunks[2]);
+}
+
+fn render_instructions(f: &mut Frame, app: &App, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(5),      // Instruction input
+            Constraint::Length(8),   // Help text
+        ])
+        .split(area);
+
+    // Instruction input area
+    let instruction_text = if app.instructions.is_empty() {
+        "(Type your instruction here. Example: \"frontend-1 fix the login bug\" or \"all run tests\")"
+    } else {
+        &app.instructions
+    };
+
+    let instruction_para = Paragraph::new(instruction_text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Natural Language Instructions ")
+                .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+                .border_style(Style::default().fg(Color::Yellow))
+        )
+        .style(if app.instructions.is_empty() {
+            Style::default().fg(Color::DarkGray)
+        } else {
+            Style::default().fg(Color::White)
+        });
+    f.render_widget(instruction_para, chunks[0]);
+
+    // Help text
+    let help_lines = vec![
+        Line::from(vec![
+            Span::styled("Instructions Mode", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(""),
+        Line::from("Type natural language instructions and press Enter to execute."),
+        Line::from("Instructions are broadcast to all agents as TASK messages."),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" execute  |  "),
+            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::raw(" clear"),
+        ]),
+    ];
+
+    let help_para = Paragraph::new(help_lines)
+        .block(Block::default().borders(Borders::ALL))
+        .style(Style::default().fg(Color::White));
+    f.render_widget(help_para, chunks[1]);
 }
 
 fn truncate(s: &str, max_len: usize) -> String {

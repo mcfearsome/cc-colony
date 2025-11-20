@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::colony::{executor, messaging, skills, state_integration, tmux, AgentStatus, ColonyConfig, ColonyController};
+use crate::colony::{agent_skills, executor, layout, messaging, skills, tmux, state_integration, tmux, AgentStatus, ColonyConfig, ColonyController};
 use crate::error::ColonyResult;
 use crate::utils;
 
@@ -95,9 +95,16 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         tmux::kill_session(&session_name)?;
     }
 
-    // Create tmux session
-    utils::info(&format!("Creating tmux session '{}'...", session_name));
-    tmux::create_session(&session_name)?;
+    // Try to create session with custom layout using moxide
+    let pane_map = layout::create_session_with_moxide(&session_name, &controller)?;
+
+    let use_custom_layout = !pane_map.is_empty();
+
+    // If no custom layout, create session with default tmux
+    if !use_custom_layout {
+        utils::info(&format!("Creating tmux session '{}'...", session_name));
+        tmux::create_session(&session_name)?;
+    }
 
     // Start each agent in a tmux pane
     let agent_ids: Vec<String> = controller.agents().keys().cloned().collect();
@@ -106,6 +113,8 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
     // Clone repository config to avoid borrow checker issues in the loop
     let repo_config = controller.config().repository.clone();
     let has_shared_state = controller.config().shared_state.is_some();
+    // Clone global capabilities before agent loop to avoid borrow issues
+    let global_capabilities = controller.config().capabilities.clone();
 
     for (index, agent_id) in agent_ids.iter().enumerate() {
         let agent = controller
@@ -145,6 +154,11 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             }
         }
 
+        // Install agent skills (tmux, nvim, ollama) and create symlink from worktree
+        if let Err(e) = agent_skills::install_agent_skills(&agent.project_path, &agent.worktree_path) {
+            utils::warning(&format!("  Failed to install agent skills: {}", e));
+        }
+
         // Build the claude command with properly escaped paths
         let worktree_path_str = agent.worktree_path.to_str().ok_or_else(|| {
             crate::error::ColonyError::Colony(format!(
@@ -176,7 +190,104 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             String::new()
         };
 
+        // Add capability environment variables
+        let capabilities_env = if let Some(caps) = agent.config.resolved_capabilities(global_capabilities.as_ref()) {
+            let tools_str = caps.tools.join(",");
+            let mcp_servers_str = caps.mcp_servers.join(",");
+            let pane_tools_str = caps.pane_tools.join(",");
+
+            format!(
+                "export COLONY_TOOLS={} && export COLONY_MCP_SERVERS={} && export COLONY_PANE_TOOLS={} && ",
+                shell_escape(&tools_str),
+                shell_escape(&mcp_servers_str),
+                shell_escape(&pane_tools_str)
+            )
+        } else {
+            String::new()
+        };
+
         // Build Claude command with optional settings path
+        // Source shell config first to ensure mise/asdf/nvm and other tool managers are loaded
+        let shell_init = "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true";
+
+        // Build capabilities section if configured
+        let capabilities_section = if let Some(caps) = agent.config.resolved_capabilities(global_capabilities.as_ref()) {
+            format!(
+                r#"
+
+## Your Capabilities
+
+**Tools**: {}
+**MCP Servers**: {}
+**Pane Tools**: {}
+
+Environment variables: `$COLONY_TOOLS`, `$COLONY_MCP_SERVERS`, `$COLONY_PANE_TOOLS`
+"#,
+                if caps.tools.is_empty() { "None".to_string() } else { caps.tools.join(", ") },
+                if caps.mcp_servers.is_empty() { "None".to_string() } else { caps.mcp_servers.join(", ") },
+                if caps.pane_tools.is_empty() { "None".to_string() } else { caps.pane_tools.join(", ") }
+            )
+        } else {
+            String::new()
+        };
+
+        // Build startup prompt as a command-line argument
+        let startup_prompt = format!(
+            r#"# Welcome to Colony
+
+You are **{}** working as part of a multi-agent colony.
+
+## Your Role
+**Role**: {}
+**Focus**: {}
+{}
+## Communication System
+You can communicate with other agents using the message queue system.
+
+**Check messages**: `./colony_message.sh read` or `./colony_message_{}.sh read`
+**Send messages**: `./colony_message.sh send <recipient> "message"`
+
+Use `./colony_message_{}.sh` if your worktree is shared with other agents.
+
+**Important**: Messages automatically include your current directory and git branch as context. When receiving messages, pay attention to the directory context shown in square brackets [/path] and branch in parentheses (branch-name).
+
+## Available Skills
+
+You have access to these skills in `.claude/skills/`:
+
+**Tool Panes:**
+- `tmux-pane-tools.md` - Create/manage separate panes for persistent tools
+- `nvim-pane-editing.md` - Edit files in dedicated nvim pane
+- `ollama-local-llm.md` - Use local LLMs (CodeLlama, Llama3) for fast analysis
+
+**Development:**
+- `bash-scripting.md` - Write reliable bash scripts for automation
+- `git-workflow.md` - Git operations, branching, commits, collaboration
+- `gh-cli.md` - GitHub CLI for PRs, issues, releases
+
+**Data & APIs:**
+- `curl-api.md` - HTTP requests, API interactions, file transfers
+- `jq-json.md` - JSON parsing, filtering, transforming
+
+## Best Practices
+1. Check messages regularly with `./colony_message.sh read`
+2. Announce what you're working on to other agents
+3. Use tool panes (nvim, ollama) for persistent tool sessions
+4. Ask for help when blocked
+5. Share important findings via messages
+6. Coordinate on shared resources
+
+Read the full guide at: .colony/COLONY_COMMUNICATION.md
+
+Now get started on your assigned work!"#,
+            agent.id(),
+            agent.config.role,
+            agent.config.focus,
+            capabilities_section,
+            agent.id(),
+            agent.id()
+        );
+
         let claude_cmd = if agent.config.has_mcp_servers() {
             let settings_path = agent.project_path.join(".claude").join("settings.json");
             let settings_path_str = settings_path.to_str().ok_or_else(|| {
@@ -186,44 +297,66 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 ))
             })?;
             format!(
-                "{}cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                "{} && {}{}cd {} && claude --mcp-config {} --strict-mcp-config --permission-mode bypassPermissions --add-dir {} --append-system-prompt {}",
+                shell_init,
                 env_prefix,
+                capabilities_env,
                 shell_escape(worktree_path_str),
-                shell_escape(project_path_str),
-                shell_escape(settings_path_str)
+                shell_escape(settings_path_str),
+                shell_escape(worktree_path_str),
+                shell_escape(&startup_prompt)
             )
         } else {
             format!(
-                "{}cd {} && claude --project {} --dangerously-skip-permissions",
+                "{} && {}{}cd {} && claude --setting-sources local --permission-mode bypassPermissions --add-dir {} --append-system-prompt {}",
+                shell_init,
                 env_prefix,
+                capabilities_env,
                 shell_escape(worktree_path_str),
-                shell_escape(project_path_str)
+                shell_escape(worktree_path_str),
+                shell_escape(&startup_prompt)
             )
         };
 
-        // Track the actual pane index (tmux assigns these, not us)
-        let pane_idx = if index > 0 {
-            // Alternate between vertical and horizontal splits for better layout
-            // Odd indices (1, 3, 5...) use vertical splits
-            // Even indices (2, 4, 6...) use horizontal splits
-            // This creates a more balanced grid-like layout
-            const VERTICAL_SPLIT_MODULO: usize = 1;
-            const HORIZONTAL_SPLIT_MODULO: usize = 0;
-
-            if index % 2 == VERTICAL_SPLIT_MODULO {
-                tmux::split_vertical(&session_name, &claude_cmd)?
+        // Track the actual pane coordinates (window, pane)
+        let (window_idx, pane_idx) = if use_custom_layout {
+            // With custom layout, panes already exist from moxide
+            // Find where this agent should be
+            if let Some(coords) = pane_map.get(agent_id) {
+                // Send command to the pre-existing pane
+                tmux::send_command_to_window_pane(&session_name, coords.0, coords.1, &claude_cmd)?;
+                *coords
             } else {
-                tmux::split_horizontal(&session_name, &claude_cmd)?
+                // Agent not in layout config, skip
+                utils::warning(&format!("Agent '{}' not found in custom layout, skipping", agent_id));
+                continue;
             }
         } else {
-            // For the first agent (index 0), send the command to the initial pane
-            const FIRST_PANE_INDEX: usize = 0;
-            tmux::send_command_to_pane(&session_name, FIRST_PANE_INDEX, &claude_cmd)?;
-            FIRST_PANE_INDEX
+            // Default layout: create panes dynamically in window 0
+            let pane_idx = if index > 0 {
+                // Alternate between vertical and horizontal splits for better layout
+                const VERTICAL_SPLIT_MODULO: usize = 1;
+
+                if index % 2 == VERTICAL_SPLIT_MODULO {
+                    tmux::split_vertical(&session_name, &claude_cmd)?
+                } else {
+                    tmux::split_horizontal(&session_name, &claude_cmd)?
+                }
+            } else {
+                // For the first agent (index 0), send the command to the initial pane
+                const FIRST_PANE_INDEX: usize = 0;
+                tmux::send_command_to_pane(&session_name, FIRST_PANE_INDEX, &claude_cmd)?;
+                FIRST_PANE_INDEX
+            };
+            (0, pane_idx)
         };
 
-        // Set pane title using the actual pane index from tmux
-        tmux::set_pane_title(&session_name, pane_idx, &format!("Agent: {}", agent.id()))?;
+        // Set pane title
+        if use_custom_layout {
+            tmux::set_window_pane_title(&session_name, window_idx, pane_idx, &format!("Agent: {}", agent.id()))?;
+        } else {
+            tmux::set_pane_title(&session_name, pane_idx, &format!("Agent: {}", agent.id()))?;
+        }
 
         // Enable output capture for this pane (pipe to log file)
         #[cfg(unix)]
@@ -236,39 +369,39 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             })?;
             let log_path = shell_escape(log_path_str);
             let escaped_session = shell_escape(&session_name);
-            let pipe_cmd = format!(
-                "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
-                escaped_session, pane_idx, log_path
-            );
+            let pipe_cmd = if use_custom_layout {
+                format!(
+                    "tmux pipe-pane -t {}:{}.{} 'cat >> {}'",
+                    escaped_session, window_idx, pane_idx, log_path
+                )
+            } else {
+                format!(
+                    "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
+                    escaped_session, pane_idx, log_path
+                )
+            };
             let _ = std::process::Command::new("sh")
                 .arg("-c")
                 .arg(&pipe_cmd)
                 .output();
         }
 
-        // Send startup prompt to the pane if available
-        if let Some(prompt) = startup_prompt {
-            // Wait a moment for Claude to initialize
-            tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
-
-            // Send the prompt via tmux send-keys using actual pane index
-            if let Err(e) = send_prompt_to_pane(&session_name, pane_idx, &prompt) {
-                utils::warning(&format!(
-                    "  Failed to send startup prompt to agent '{}': {}",
-                    agent.id(),
-                    e
-                ));
-            } else {
-                utils::info(&format!("  Sent startup prompt to agent '{}'", agent.id()));
-            }
-        }
-
         agent.set_status(AgentStatus::Running);
-        utils::success(&format!(
-            "  Started agent '{}' in pane {}",
-            agent.id(),
-            pane_idx
-        ));
+        if use_custom_layout {
+            utils::success(&format!(
+                "  Started agent '{}' in window {}:{} ({})",
+                agent.id(),
+                window_idx,
+                pane_idx,
+                layout::pane_target(&session_name, window_idx, pane_idx)
+            ));
+        } else {
+            utils::success(&format!(
+                "  Started agent '{}' in pane {}",
+                agent.id(),
+                pane_idx
+            ));
+        }
 
         println!();
     }
@@ -291,19 +424,13 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 )
             })?;
 
-            // Get the current directory for the executor to run in
-            let executor_work_dir = std::env::current_dir().map_err(|e| {
-                crate::error::ColonyError::Colony(format!("Failed to get current directory: {}", e))
-            })?;
-            let executor_work_dir_str = executor_work_dir.to_str().ok_or_else(|| {
-                crate::error::ColonyError::Colony(
-                    "Current directory path contains non-UTF-8 characters".to_string(),
-                )
-            })?;
+            // Executor runs from its own project directory to avoid conflicts with main project
+            let executor_work_dir_str = executor_project_str;
 
             // Build environment variables for the executor
+            // Set CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=false to allow cd to project directories
             let executor_env = format!(
-                "export COLONY_AGENT_ID={}",
+                "export COLONY_AGENT_ID={} && export CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=false",
                 shell_escape(&executor_config.agent_id)
             );
 
@@ -311,7 +438,18 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             if executor_config.has_mcp_servers() {
                 match create_executor_settings(&executor_project_path, executor_config).await {
                     Ok(()) => {
-                        utils::info("  Created executor settings.json with MCP server configuration");
+                        let settings_path = executor_project_path.join(".claude/settings.json");
+                        utils::info(&format!(
+                            "  Created executor settings.json with MCP server configuration at: {}",
+                            settings_path.display()
+                        ));
+
+                        // Show which MCP servers were configured
+                        if let Some(mcp_servers) = &executor_config.mcp_servers {
+                            utils::info(&format!("  Configured MCP servers: {}",
+                                mcp_servers.keys().map(|k| k.as_str()).collect::<Vec<_>>().join(", ")
+                            ));
+                        }
                     }
                     Err(e) => {
                         utils::warning(&format!(
@@ -323,6 +461,34 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
             }
 
             // Build the Claude command for the executor
+            // Source shell config first to ensure mise/asdf/nvm are loaded
+            let shell_init = "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true";
+
+            // Build executor startup prompt
+            let executor_prompt = format!(
+                r#"# Welcome to the Colony MCP Executor
+
+You are the **MCP Executor Agent** ({}) for this colony.
+
+## Your Mission
+Execute complex multi-tool MCP workflows on behalf of other agents in the colony.
+
+## Your Responsibilities
+1. Monitor messages for incoming task requests from other agents
+2. Parse MCP workflow requirements from task messages
+3. Execute workflows using the Task tool (TypeScript or Python)
+4. Return execution results back to requesting agents
+5. Report errors with detailed information when tasks fail
+
+## How You Work
+1. Check messages: ./colony_message.sh read
+2. Look for message_type: "task" containing MCP workflow requests
+3. Use the mcp-executor skill for guidance
+
+Read: .claude/skills/mcp-executor/COLONY-EXECUTOR.md"#,
+                executor_config.agent_id
+            );
+
             let executor_cmd = if executor_config.has_mcp_servers() {
                 let executor_settings_path = executor_project_path.join(".claude/settings.json");
                 let executor_settings_str = executor_settings_path.to_str().ok_or_else(|| {
@@ -330,37 +496,84 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                         "Invalid executor settings path: contains non-UTF-8 characters".to_string(),
                     )
                 })?;
+
+                utils::info(&format!("  Settings file: {}", executor_settings_str));
+
+                // Verify settings file was created and contains expected MCP servers
+                if let Ok(contents) = std::fs::read_to_string(&executor_settings_path) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                        if let Some(servers) = json.get("mcpServers").and_then(|s| s.as_object()) {
+                            utils::info(&format!("  Verified {} MCP servers in settings file", servers.len()));
+                        }
+                    }
+                } else {
+                    utils::warning("  Could not verify settings file contents");
+                }
+
                 format!(
-                    "{} && cd {} && claude --project {} --settings {} --dangerously-skip-permissions",
+                    "{} && {} && cd {} && claude --mcp-config {} --strict-mcp-config --permission-mode bypassPermissions --add-dir {} --append-system-prompt {}",
+                    shell_init,
                     executor_env,
                     shell_escape(executor_work_dir_str),
-                    shell_escape(executor_project_str),
-                    shell_escape(executor_settings_str)
+                    shell_escape(executor_settings_str),
+                    shell_escape(executor_work_dir_str),
+                    shell_escape(&executor_prompt)
                 )
             } else {
                 format!(
-                    "{} && cd {} && claude --project {} --dangerously-skip-permissions",
+                    "{} && {} && cd {} && claude --setting-sources local --permission-mode bypassPermissions --add-dir {} --append-system-prompt {}",
+                    shell_init,
                     executor_env,
                     shell_escape(executor_work_dir_str),
-                    shell_escape(executor_project_str)
+                    shell_escape(executor_work_dir_str),
+                    shell_escape(&executor_prompt)
                 )
             };
 
-            // Create the executor pane and get actual pane index from tmux
-            let executor_pane_idx = if agent_count > 0 {
-                tmux::split_vertical(&session_name, &executor_cmd)?
+            // Create the executor pane
+            let (executor_window_idx, executor_pane_idx) = if use_custom_layout {
+                // With custom layout, find executor's position in pane_map
+                if let Some(coords) = pane_map.get("mcp-executor") {
+                    // Send command to pre-existing pane
+                    tmux::send_command_to_window_pane(&session_name, coords.0, coords.1, &executor_cmd)?;
+                    *coords
+                } else {
+                    // Not in layout, use default position
+                    let pane_idx = if agent_count > 0 {
+                        tmux::split_vertical(&session_name, &executor_cmd)?
+                    } else {
+                        tmux::send_command_to_pane(&session_name, 0, &executor_cmd)?;
+                        0
+                    };
+                    (0, pane_idx)
+                }
             } else {
-                // If no agents (unusual case), send to first pane
-                tmux::send_command_to_pane(&session_name, 0, &executor_cmd)?;
-                0
+                // Default layout
+                let pane_idx = if agent_count > 0 {
+                    tmux::split_vertical(&session_name, &executor_cmd)?
+                } else {
+                    tmux::send_command_to_pane(&session_name, 0, &executor_cmd)?;
+                    0
+                };
+                (0, pane_idx)
             };
+
             executor_pane_index = Some(executor_pane_idx);
 
-            tmux::set_pane_title(
-                &session_name,
-                executor_pane_idx,
-                &format!("MCP Executor: {}", executor_config.agent_id),
-            )?;
+            if use_custom_layout {
+                tmux::set_window_pane_title(
+                    &session_name,
+                    executor_window_idx,
+                    executor_pane_idx,
+                    &format!("MCP Executor: {}", executor_config.agent_id),
+                )?;
+            } else {
+                tmux::set_pane_title(
+                    &session_name,
+                    executor_pane_idx,
+                    &format!("MCP Executor: {}", executor_config.agent_id),
+                )?;
+            }
 
             // Enable output capture for executor pane
             #[cfg(unix)]
@@ -376,46 +589,34 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
                 })?;
                 let log_path = shell_escape(log_path_str);
                 let escaped_session = shell_escape(&session_name);
-                let pipe_cmd = format!(
-                    "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
-                    escaped_session, executor_pane_idx, log_path
-                );
+                let pipe_cmd = if use_custom_layout {
+                    format!(
+                        "tmux pipe-pane -t {}:{}.{} 'cat >> {}'",
+                        escaped_session, executor_window_idx, executor_pane_idx, log_path
+                    )
+                } else {
+                    format!(
+                        "tmux pipe-pane -t {}:0.{} 'cat >> {}'",
+                        escaped_session, executor_pane_idx, log_path
+                    )
+                };
                 let _ = std::process::Command::new("sh")
                     .arg("-c")
                     .arg(&pipe_cmd)
                     .output();
             }
 
-            // Send startup prompt to the executor pane
-            let executor_prompt_path = executor_project_path.join(".claude/startup_prompt.txt");
-            if executor_prompt_path.exists() {
-                match tokio::fs::read_to_string(&executor_prompt_path).await {
-                    Ok(prompt) => {
-                        // Wait for Claude to initialize
-                        tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
-
-                        if let Err(e) = send_prompt_to_pane(&session_name, executor_pane_idx, &prompt) {
-                            utils::warning(&format!(
-                                "  Failed to send startup prompt to executor: {}",
-                                e
-                            ));
-                        } else {
-                            utils::info("  Sent startup prompt to executor");
-                        }
-                    }
-                    Err(e) => {
-                        utils::warning(&format!(
-                            "  Failed to read executor startup prompt: {}",
-                            e
-                        ));
-                    }
-                }
+            if use_custom_layout {
+                utils::success(&format!(
+                    "  MCP Executor '{}' started in window {}:{}",
+                    executor_config.agent_id, executor_window_idx, executor_pane_idx
+                ));
+            } else {
+                utils::success(&format!(
+                    "  MCP Executor '{}' started in pane {}",
+                    executor_config.agent_id, executor_pane_idx
+                ));
             }
-
-            utils::success(&format!(
-                "  MCP Executor '{}' started in pane {}",
-                executor_config.agent_id, executor_pane_idx
-            ));
             println!();
         }
     }
@@ -443,21 +644,47 @@ pub async fn run(no_attach: bool) -> ColonyResult<()> {
         )
     })?;
 
-    let tui_cmd = format!(
-        "cd {} && {} colony tui",
-        shell_escape(current_dir_str),
-        shell_escape(colony_path)
-    );
-
-    // Create a pane for the TUI and get actual pane index from tmux
+    // Create a pane for the TUI
     if agent_count > 0 {
-        let tui_pane_index = tmux::split_vertical(&session_name, &tui_cmd)?;
-        tmux::set_pane_title(&session_name, tui_pane_index, "Orchestration TUI")?;
-        utils::success(&format!("  Orchestration TUI pane created in pane {}", tui_pane_index));
+        let tui_cmd = format!("cd {} && {} tui", current_dir_str, colony_path);
+
+        let (tui_window_idx, tui_pane_idx) = if use_custom_layout {
+            // With custom layout, find TUI's position in pane_map
+            if let Some(coords) = pane_map.get("tui") {
+                // Send TUI command to pre-existing pane
+                tmux::send_command_to_window_pane(&session_name, coords.0, coords.1, &tui_cmd)?;
+                *coords
+            } else {
+                // Not in layout, use default
+                let pane_idx = tmux::split_vertical(&session_name, "bash")?;
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                tmux::send_command_to_pane(&session_name, pane_idx, &tui_cmd)?;
+                (0, pane_idx)
+            }
+        } else {
+            // Default layout: split with bash then send command
+            let pane_idx = tmux::split_vertical(&session_name, "bash")?;
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            tmux::send_command_to_pane(&session_name, pane_idx, &tui_cmd)?;
+            (0, pane_idx)
+        };
+
+        // Set title
+        if use_custom_layout {
+            tmux::set_window_pane_title(&session_name, tui_window_idx, tui_pane_idx, "Orchestration TUI")?;
+        } else {
+            tmux::set_pane_title(&session_name, tui_pane_idx, "Orchestration TUI")?;
+        }
+
+        if use_custom_layout {
+            utils::success(&format!("  Orchestration TUI pane created in window {}:{}", tui_window_idx, tui_pane_idx));
+        } else {
+            utils::success(&format!("  Orchestration TUI pane created in pane {}", tui_pane_idx));
+        }
     }
 
-    // Apply tiled layout for better view
-    if agent_count > 0 {
+    // Apply layout (only for default, custom layout already applied)
+    if agent_count > 0 && !use_custom_layout {
         tmux::select_tiled_layout(&session_name)?;
     }
 
@@ -816,13 +1043,19 @@ fn setup_messaging_infrastructure(controller: &ColonyController) -> ColonyResult
 
     // Create helper scripts for each agent
     for agent in controller.agents().values() {
-        messaging::create_message_helper_script(colony_root, agent.id())?;
+        // Pass worktree path for symlinking (None for executor or custom directories)
+        let worktree_path = if !agent.config.uses_custom_directory() {
+            Some(agent.worktree_path.as_path())
+        } else {
+            None
+        };
+        messaging::create_message_helper_script(colony_root, agent.id(), worktree_path)?;
     }
 
-    // Create helper script for executor if enabled
+    // Create helper script for executor if enabled (no worktree for executor)
     if let Some(executor_config) = &controller.config().executor {
         if executor_config.enabled {
-            messaging::create_message_helper_script(colony_root, &executor_config.agent_id)?;
+            messaging::create_message_helper_script(colony_root, &executor_config.agent_id, None)?;
         }
     }
 

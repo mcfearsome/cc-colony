@@ -3,6 +3,7 @@
 /// This module provides commands for managing multiple Claude Code instances
 /// running in parallel with proper isolation and state management.
 pub mod agent;
+pub mod agent_skills;
 pub mod attach;
 pub mod auth;
 pub mod auth_cmd;
@@ -14,6 +15,7 @@ pub mod executor;
 pub mod health;
 pub mod init;
 pub mod logging;
+pub mod layout;
 pub mod logs;
 pub mod messages_cmd;
 pub mod messaging;

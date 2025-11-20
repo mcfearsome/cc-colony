@@ -6,6 +6,8 @@ You are working in a multi-agent colony. This skill helps you communicate effect
 
 You have access to a messaging helper script: `./colony_message.sh`
 
+**Important Context**: Messages automatically include your current working directory and git branch. This context helps recipients understand where the work is happening.
+
 ### Check Your Messages
 
 Read messages sent to you by other agents:
@@ -18,6 +20,14 @@ This shows:
 - Direct messages sent to you
 - Broadcast messages sent to all agents
 - Message timestamps and sender information
+- **Context**: Working directory [/path/to/worktree] and git branch (branch-name)
+
+Example output:
+```
+---
+From: backend-1 [/Users/user/project/.colony/worktrees/backend] (feature/api)
+API endpoints are ready for integration. Check /api/v1/users
+```
 
 ### Send a Message to a Specific Agent
 
@@ -48,6 +58,28 @@ Example:
 ```
 
 This shows all agent IDs you can message.
+
+## Message Context
+
+Every message automatically includes:
+
+1. **Project Directory** - The sender's working directory shown in [square brackets]
+2. **Git Branch** - The sender's current branch shown in (parentheses)
+
+**Example message display:**
+```
+From: backend-1 [/Users/user/project/.colony/worktrees/backend] (feature/api)
+API endpoints complete. Ready for testing.
+```
+
+**Why this matters:**
+- **For MCP Executor**: Knows which directory to execute scripts in
+- **For Code Review**: Understands which branch/worktree to examine
+- **For Collaboration**: Clarifies which workspace contains the relevant changes
+- **For File References**: Relative paths in messages are relative to the project_dir
+
+**Using the context:**
+When you receive a message with a file reference like "Check src/api/users.ts", combine it with the `project_dir` from the message to get the absolute path.
 
 ## Best Practices
 
